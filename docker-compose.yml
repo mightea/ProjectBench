@@ -1,0 +1,16 @@
+# Example for TrueNAS (Apps → Discover → Install via YAML) or any Docker host.
+services:
+  projectbench:
+    image: ghcr.io/mightea/projectbench:latest
+    container_name: projectbench
+    restart: unless-stopped
+    # TrueNAS apps usually run as the "apps" user (568). The dataset must be writable by it.
+    user: "568:568"
+    environment:
+      PUBLIC_URL: http://truenas.example.com:8787
+      # Optional: set the password on first start instead of the setup screen
+      # INITIAL_PASSWORD: change-me-please
+    volumes:
+      - /mnt/tank/apps/projectbench:/data
+    ports:
+      - "8787:8787"
