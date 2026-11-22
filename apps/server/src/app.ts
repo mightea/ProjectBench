@@ -21,6 +21,7 @@ import { secureHeaders } from 'hono/secure-headers';
 import { z } from 'zod';
 import { VERSION, type Config } from './config.ts';
 import { FailureLimiter } from './rate-limit.ts';
+import { apiRoutes } from './routes.ts';
 
 export const SESSION_COOKIE = 'pb_session';
 
@@ -117,6 +118,7 @@ export function createApp({ db, config, limiter = new FailureLimiter() }: AppDep
   });
 
   app.get('/api/session', (c) => c.json({ authenticated: true }));
+  app.route('/api', apiRoutes(db));
 
   app.all('/api/*', (c) => c.json({ error: 'Not found' }, 404));
 

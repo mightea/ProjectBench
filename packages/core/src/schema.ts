@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import { index, integer, primaryKey, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { CHECKLIST_KINDS, ITEM_STATES, PROJECT_STATUSES } from './schemas.ts';
 
 /** ISO-8601 timestamp set by SQLite when a row is inserted. */
 const createdAt = () =>
@@ -12,14 +13,6 @@ const updatedAt = () =>
   text('updated_at')
     .notNull()
     .default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`);
-
-export const PROJECT_STATUSES = ['idea', 'planned', 'active', 'waiting', 'done', 'archived'] as const;
-export const CHECKLIST_KINDS = ['buy', 'clarify', 'todo'] as const;
-export const ITEM_STATES = ['open', 'ordered', 'done'] as const;
-
-export type ProjectStatus = (typeof PROJECT_STATUSES)[number];
-export type ChecklistKind = (typeof CHECKLIST_KINDS)[number];
-export type ItemState = (typeof ITEM_STATES)[number];
 
 export const projects = sqliteTable(
   'projects',
