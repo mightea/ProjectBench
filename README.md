@@ -4,7 +4,7 @@
 
 A small self-hosted app for personal projects: checklists for things to buy and questions to clarify, notes, photos and files, priorities and due dates. It is built phone-first as an installable web app (PWA), and an MCP server will let Claude read and update projects.
 
-**Status:** phase 1 of 6. The skeleton is in place: database schema and migrations, server with a health check and login, the PWA shell, and the Docker image. Projects and checklists arrive in phase 2.
+**Status:** phase 2 of 6. You can create projects with priority, status, due date and tags, and manage checklists (to buy, to clarify, to do) with shop links, an ordered state and drag-to-reorder. The MCP server comes in phase 3.
 
 ## Stack
 
@@ -16,7 +16,7 @@ A small self-hosted app for personal projects: checklists for things to buy and 
 | Tests | Vitest |
 
 ```
-packages/core   database schema, migrations, auth (shared by REST API and, later, MCP)
+packages/core   database schema, migrations, auth, services and input schemas (shared by REST API and, later, MCP)
 apps/server     Hono server: /api/*, serves the built PWA
 apps/web        React PWA
 ```
@@ -87,7 +87,7 @@ Back up the dataset with TrueNAS snapshots. A safe copy of the database while th
 ## Roadmap
 
 1. **Skeleton** – schema, server, login, PWA shell, Docker ← *done*
-2. Projects and checklists
+2. **Projects and checklists** ← *done*
 3. MCP server
 4. Notes and attachments
 5. Daily-use polish (Today, Buy, search, offline reading)
