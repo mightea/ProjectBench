@@ -15,6 +15,8 @@ import {
   NotFoundError,
   openQuestions,
   preferredLink,
+  PROJECT_COLORS,
+  PROJECT_ICONS,
   PROJECT_STATUSES,
   projectMarkdown,
   readAttachmentContent,
@@ -302,7 +304,8 @@ export function createMcpServer(db: Db, files?: FileStore): McpServer {
     'update_project',
     {
       title: 'Update project',
-      description: 'Changes project fields. Set status to archived to archive it. Null clears a due date or description.',
+      description:
+        'Changes project fields. Set status to archived to archive it. Null clears a due date, description, color or icon.',
       inputSchema: {
         project: projectRef,
         title: z.string().min(1).optional(),
@@ -310,6 +313,8 @@ export function createMcpServer(db: Db, files?: FileStore): McpServer {
         status: z.enum(PROJECT_STATUSES).optional(),
         priority: priority.optional(),
         due_date: date.nullable().optional(),
+        color: z.enum(PROJECT_COLORS).nullable().optional(),
+        icon: z.enum(PROJECT_ICONS).nullable().optional(),
         tags: z.array(z.string()).max(20).optional().describe('Replaces all tags'),
       },
       annotations: UPDATE,

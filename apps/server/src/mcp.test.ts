@@ -186,6 +186,15 @@ describe('MCP tools', () => {
     expect(await data('list_projects')).toEqual([]);
   });
 
+  it('sets and clears a project color and icon through update_project', async () => {
+    const created = await tool('create_project', { title: 'Bench light' });
+    const id = created.text.match(/ID: (\S+)/)![1]!;
+    await tool('update_project', { project: id, color: 'amber', icon: 'light' });
+    expect(getProject({ db, actor: 'mcp' }, id)).toMatchObject({ color: 'amber', icon: 'light' });
+    await tool('update_project', { project: id, color: null, icon: null });
+    expect(getProject({ db, actor: 'mcp' }, id)).toMatchObject({ color: null, icon: null });
+  });
+
   it('builds an agenda', async () => {
     await tool('create_project', { title: 'Late', priority: 1, due_date: '2000-01-01' });
     const result = await data('agenda', { days: 3 });
