@@ -16,7 +16,7 @@ export function NotesTab({ projectId }: { projectId: string }) {
 
   return (
     <>
-      <main className="flex flex-1 flex-col gap-3 px-4 pt-4 pb-4 md:px-8">
+      <main className="flex flex-1 flex-col gap-3">
         {!notes.data && <QueryFallback query={notes} />}
         {notes.data?.length === 0 && (
           <p className="rounded-2xl border border-dashed border-line bg-surface px-5 py-8 text-center text-sm text-muted">

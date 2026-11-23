@@ -8,7 +8,11 @@ export const PROJECT_STATUSES = ['idea', 'planned', 'active', 'waiting', 'done',
 export const CHECKLIST_KINDS = ['buy', 'clarify', 'todo'] as const;
 export const ITEM_STATES = ['open', 'ordered', 'done'] as const;
 export const PRIORITIES = [1, 2, 3, 4] as const;
+export const PROJECT_COLORS = ['teal', 'amber', 'rust', 'violet', 'blue', 'green', 'rose', 'slate'] as const;
+export const PROJECT_ICONS = ['chip', 'light', 'motorcycle', 'power', 'wrench', 'home', 'garden', 'box'] as const;
 
+export type ProjectColor = (typeof PROJECT_COLORS)[number];
+export type ProjectIcon = (typeof PROJECT_ICONS)[number];
 export type ProjectStatus = (typeof PROJECT_STATUSES)[number];
 export type ChecklistKind = (typeof CHECKLIST_KINDS)[number];
 export type ItemState = (typeof ITEM_STATES)[number];
@@ -35,11 +39,14 @@ export const projectCreateSchema = z.object({
   priority: priority.optional(),
   dueDate: isoDate.optional(),
   startDate: isoDate.optional(),
-  color: optionalText(32).optional(),
+  color: z.enum(PROJECT_COLORS).nullable().optional(),
+  icon: z.enum(PROJECT_ICONS).nullable().optional(),
   tags: z.array(trimmed(40)).max(20).optional(),
 });
 
 export const projectUpdateSchema = projectCreateSchema.partial().extend({
+  /** An image attached to this project, or null for no cover. */
+  coverAttachmentId: z.string().min(1).nullable().optional(),
   /** Move within its priority group, as an index among the other projects of that priority. */
   position: z.number().int().min(0).optional(),
 });
@@ -207,11 +214,23 @@ export interface ProjectSummary {
   priority: number;
   dueDate: string | null;
   color: string | null;
+  icon: string | null;
+  coverAttachmentId: string | null;
   tags: string[];
   progress: Progress;
+  /** The same counts, per checklist kind. */
+  kinds: Record<ChecklistKind, Progress>;
+  /** The first open item on a to-do list. */
+  nextStep: NextStep | null;
   /** Earliest due date among open items, if any. */
   nextItemDue: string | null;
   updatedAt: string;
+}
+
+export interface NextStep {
+  id: string;
+  text: string;
+  note: string | null;
 }
 
 export interface ItemLink {

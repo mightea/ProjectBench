@@ -1,6 +1,7 @@
 import { and, asc, desc, eq, inArray, ne, notInArray, sql, type SQL } from 'drizzle-orm';
-import { NotFoundError } from '../errors.ts';
+import { InvalidOperationError, NotFoundError } from '../errors.ts';
 import { newId } from '../ids.ts';
+import { isPreviewableImage } from '../media.ts';
 import { attachments, checklistItems, checklists, itemLinks, projects, projectTags, tags } from '../schema.ts';
 import {
   projectCreateSchema,
@@ -8,7 +9,10 @@ import {
   projectUpdateSchema,
   type Checklist,
   type ChecklistItem,
+  type ChecklistKind,
   type ItemLink,
+  type NextStep,
+  type Progress,
   type ProjectCreate,
   type ProjectDetail,
   type ProjectListQuery,
@@ -31,11 +35,14 @@ import { setProjectTags, tagsForProjects } from './tags.ts';
 type ProjectRow = typeof projects.$inferSelect;
 
 interface Aggregates {
-  total: number;
-  done: number;
-  ordered: number;
+  progress: Progress;
+  kinds: Record<ChecklistKind, Progress>;
+  nextStep: NextStep | null;
   nextItemDue: string | null;
 }
+
+const noProgress = (): Progress => ({ total: 0, done: 0, ordered: 0 });
+const noKinds = (): Record<ChecklistKind, Progress> => ({ buy: noProgress(), clarify: noProgress(), todo: noProgress() });
 
 function aggregatesFor(tx: DbLike, projectIds: string[]): Map<string, Aggregates> {
   const result = new Map<string, Aggregates>();
@@ -43,6 +50,7 @@ function aggregatesFor(tx: DbLike, projectIds: string[]): Map<string, Aggregates
   const rows = tx
     .select({
       projectId: checklists.projectId,
+      kind: checklists.kind,
       total: sql<number>`count(${checklistItems.id})`,
       done: sql<number>`coalesce(sum(${checklistItems.state} = 'done'), 0)`,
       ordered: sql<number>`coalesce(sum(${checklistItems.state} = 'ordered'), 0)`,
@@ -51,9 +59,29 @@ function aggregatesFor(tx: DbLike, projectIds: string[]): Map<string, Aggregates
     .from(checklistItems)
     .innerJoin(checklists, eq(checklists.id, checklistItems.checklistId))
     .where(inArray(checklists.projectId, projectIds))
-    .groupBy(checklists.projectId)
+    .groupBy(checklists.projectId, checklists.kind)
     .all();
-  for (const r of rows) result.set(r.projectId, r);
+  for (const r of rows) {
+    const agg = result.get(r.projectId) ?? { progress: noProgress(), kinds: noKinds(), nextStep: null, nextItemDue: null };
+    agg.kinds[r.kind] = { total: r.total, done: r.done, ordered: r.ordered };
+    agg.progress.total += r.total;
+    agg.progress.done += r.done;
+    agg.progress.ordered += r.ordered;
+    if (r.nextItemDue && (!agg.nextItemDue || r.nextItemDue < agg.nextItemDue)) agg.nextItemDue = r.nextItemDue;
+    result.set(r.projectId, agg);
+  }
+
+  const steps = tx
+    .select({ projectId: checklists.projectId, id: checklistItems.id, text: checklistItems.text, note: checklistItems.note })
+    .from(checklistItems)
+    .innerJoin(checklists, eq(checklists.id, checklistItems.checklistId))
+    .where(and(inArray(checklists.projectId, projectIds), eq(checklists.kind, 'todo'), eq(checklistItems.state, 'open')))
+    .orderBy(asc(checklists.sortKey), asc(checklistItems.sortKey))
+    .all();
+  for (const { projectId, ...step } of steps) {
+    const agg = result.get(projectId);
+    if (agg && !agg.nextStep) agg.nextStep = step;
+  }
   return result;
 }
 
@@ -65,8 +93,12 @@ function toSummary(row: ProjectRow, tagNames: string[], agg?: Aggregates): Proje
     priority: row.priority,
     dueDate: row.dueDate,
     color: row.color,
+    icon: row.icon,
+    coverAttachmentId: row.coverAttachmentId,
     tags: tagNames,
-    progress: { total: agg?.total ?? 0, done: agg?.done ?? 0, ordered: agg?.ordered ?? 0 },
+    progress: agg?.progress ?? noProgress(),
+    kinds: agg?.kinds ?? noKinds(),
+    nextStep: agg?.nextStep ?? null,
     nextItemDue: agg?.nextItemDue ?? null,
     updatedAt: row.updatedAt,
   };
@@ -209,6 +241,7 @@ export function createProject(ctx: ServiceContext, input: ProjectCreate): Projec
         dueDate: data.dueDate ?? null,
         startDate: data.startDate ?? null,
         color: data.color ?? null,
+        icon: data.icon ?? null,
         sortKey: keyAt(siblingKeys(tx, priority)),
         completedAt: data.status === 'done' ? now : null,
         createdAt: now,
@@ -235,6 +268,15 @@ export function updateProject(ctx: ServiceContext, id: string, input: ProjectUpd
   ctx.db.transaction((tx) => {
     const current = tx.select().from(projects).where(eq(projects.id, id)).get();
     if (!current) throw new NotFoundError('Project', id);
+    if (fields.coverAttachmentId) {
+      const cover = tx
+        .select({ mime: attachments.mime })
+        .from(attachments)
+        .where(and(eq(attachments.id, fields.coverAttachmentId), eq(attachments.projectId, id)))
+        .get();
+      if (!cover) throw new NotFoundError('Attachment', fields.coverAttachmentId);
+      if (!isPreviewableImage(cover.mime)) throw new InvalidOperationError('A cover must be an image');
+    }
 
     const patch: Partial<typeof projects.$inferInsert> = { ...definedOnly(fields), updatedAt: now };
     const priority = fields.priority ?? current.priority;

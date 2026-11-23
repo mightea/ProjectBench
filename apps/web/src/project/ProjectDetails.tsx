@@ -1,6 +1,5 @@
 import { PROJECT_STATUSES, type ProjectDetail, type ProjectStatus, type ProjectUpdate } from '@projectbench/core/schemas';
 import { useId, useState, type FormEvent } from 'react';
-import { ProgressBar, progressLabel } from '../components/bits.tsx';
 import { DateField } from '../components/DateField.tsx';
 import { Field, inputClass, Sheet } from '../components/Sheet.tsx';
 import { TagInput } from '../components/TagInput.tsx';
@@ -24,7 +23,7 @@ const PriorityOptions = () =>
 export function ProjectProperties({ project: p, onChange }: { project: ProjectDetail; onChange: (patch: ProjectUpdate) => void }) {
   const ids = { status: useId(), priority: useId(), due: useId(), tags: useId() };
   return (
-    <aside aria-label="Project details" className="sticky top-5 mt-5 hidden flex-col gap-4 rounded-2xl border border-line bg-surface p-4 lg:flex">
+    <aside aria-label="Project details" className="hidden flex-col gap-4 rounded-2xl border border-line bg-surface p-4 lg:flex">
       <Field label="Status" htmlFor={ids.status}>
         <select id={ids.status} value={p.status} onChange={(e) => onChange({ status: e.target.value as ProjectStatus })} className={inputClass}>
           <StatusOptions />
@@ -41,10 +40,6 @@ export function ProjectProperties({ project: p, onChange }: { project: ProjectDe
       <Field label="Tags" htmlFor={ids.tags}>
         <TagInput id={ids.tags} value={p.tags} onChange={(tags) => onChange({ tags })} />
       </Field>
-      <div className="flex flex-col gap-1.5 border-t border-line-soft pt-3">
-        <ProgressBar progress={p.progress} className="h-1.5" />
-        <span className="text-xs text-muted">{progressLabel(p.progress)}</span>
-      </div>
     </aside>
   );
 }

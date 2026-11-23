@@ -75,7 +75,13 @@ export const ChevronDownIcon = (p: SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
-export const DotsIcon = (p: SVGProps<SVGSVGElement>) => (
+export const ChevronRightIcon = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base} strokeWidth={2} {...p}>
+    <path d="M9 5l7 7-7 7" />
+  </svg>
+);
+
+export const DotsIcon =(p: SVGProps<SVGSVGElement>) => (
   <svg {...base} fill="currentColor" stroke="none" {...p}>
     <circle cx="5" cy="12" r="1.8" />
     <circle cx="12" cy="12" r="1.8" />
@@ -165,6 +171,18 @@ export const ArrowUpIcon = (p: SVGProps<SVGSVGElement>) => (
 export const DownloadIcon = (p: SVGProps<SVGSVGElement>) => (
   <svg {...base} {...p}>
     <path d="M12 4v11M7 11l5 5 5-5M5 20h14" />
+  </svg>
+);
+
+export const PencilIcon = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base} strokeWidth={2} {...p}>
+    <path d="M4 20h4L19 9l-4-4L4 16v4z" />
+  </svg>
+);
+
+export const FilterIcon = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base} strokeWidth={2} {...p}>
+    <path d="M4 6h16M7 12h10M10 18h4" />
   </svg>
 );
 

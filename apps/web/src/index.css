@@ -37,6 +37,56 @@
   --color-scrim: rgb(21 23 28 / 0.45);
 }
 
+/*
+ * Project looks, chosen at runtime through lib/look.ts, so they live outside @theme.
+ * The solid color carries a white glyph in both themes; soft and ink follow the theme.
+ */
+:root {
+  --project-teal: #0e7c86;
+  --project-teal-soft: #e2f1f2;
+  --project-teal-ink: #0b5e66;
+  --project-amber: #a86400;
+  --project-amber-soft: #f8eedd;
+  --project-amber-ink: #7a4800;
+  --project-rust: #c2410c;
+  --project-rust-soft: #fbe9e1;
+  --project-rust-ink: #92310a;
+  --project-violet: #7a4cd9;
+  --project-violet-soft: #efe9fb;
+  --project-violet-ink: #5a34ab;
+  --project-blue: #2f5bea;
+  --project-blue-soft: #e6edfd;
+  --project-blue-ink: #2448c2;
+  --project-green: #2e7d4f;
+  --project-green-soft: #e3f2ea;
+  --project-green-ink: #1f5c39;
+  --project-rose: #c0396b;
+  --project-rose-soft: #fbe7ef;
+  --project-rose-ink: #952a52;
+  --project-slate: #4a5568;
+  --project-slate-soft: #e9ebef;
+  --project-slate-ink: #374151;
+}
+
+:root[data-theme='dark'] {
+  --project-teal-soft: #12302f;
+  --project-teal-ink: #7fd8df;
+  --project-amber-soft: #33270f;
+  --project-amber-ink: #f0c078;
+  --project-rust-soft: #3a2015;
+  --project-rust-ink: #f6a987;
+  --project-violet-soft: #2a2145;
+  --project-violet-ink: #c9b5f7;
+  --project-blue-soft: #1c2a55;
+  --project-blue-ink: #b3c6ff;
+  --project-green-soft: #14301f;
+  --project-green-ink: #8fdcae;
+  --project-rose-soft: #3a1b29;
+  --project-rose-ink: #f5a9c6;
+  --project-slate-soft: #262b34;
+  --project-slate-ink: #c3cad6;
+}
+
 /* data-theme is set before first paint by index.html, then kept current by lib/theme.ts. */
 :root[data-theme='dark'] {
   --color-ground: #0f1115;
