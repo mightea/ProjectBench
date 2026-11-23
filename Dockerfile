@@ -1,6 +1,7 @@
 # ---- Build: install workspace, build web app and server bundle ----
-FROM node:24-bookworm-slim AS build
-RUN corepack enable
+FROM node:26-bookworm-slim AS build
+# Node 25+ images no longer include corepack.
+RUN npm install -g corepack@latest && corepack enable
 WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
 COPY packages/core/package.json packages/core/
@@ -13,7 +14,7 @@ ENV APP_VERSION=$APP_VERSION
 RUN pnpm build
 
 # ---- Runtime dependencies: only the native SQLite module ----
-FROM node:24-bookworm-slim AS runtime-deps
+FROM node:26-bookworm-slim AS runtime-deps
 # Build tools are a fallback in case no prebuilt binary matches this platform.
 RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ && rm -rf /var/lib/apt/lists/*
 WORKDIR /deps
@@ -22,7 +23,7 @@ RUN npm init -y >/dev/null \
  && npm install --omit=dev "better-sqlite3@$(node -p "require('./server-package.json').dependencies['better-sqlite3']")"
 
 # ---- Final image ----
-FROM node:24-bookworm-slim
+FROM node:26-bookworm-slim
 ARG APP_VERSION=0.0.0
 ENV APP_VERSION=$APP_VERSION \
     NODE_ENV=production \
