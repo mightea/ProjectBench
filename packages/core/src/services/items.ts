@@ -40,6 +40,8 @@ export function getItem(tx: DbLike, id: string): ChecklistItem {
     state: i.state,
     orderedAt: i.orderedAt,
     orderRef: i.orderRef,
+    paidTotal: i.paidTotal,
+    paidCurrency: i.paidCurrency,
     expectedDate: i.expectedDate,
     doneAt: i.doneAt,
     dueDate: i.dueDate,
@@ -109,7 +111,7 @@ function statePatch(
   if (next === 'ordered' && kind !== 'buy') throw new InvalidOperationError('Only items on a buy list can be ordered');
   switch (next) {
     case 'open':
-      return { state: 'open', orderedAt: null, doneAt: null };
+      return { state: 'open', orderedAt: null, doneAt: null, paidTotal: null, paidCurrency: null };
     case 'ordered':
       return { state: 'ordered', orderedAt: current.orderedAt ?? now, doneAt: null };
     case 'done':
@@ -128,10 +130,12 @@ export function updateItem(ctx: ServiceContext, id: string, input: ItemUpdate): 
     const list = getChecklistRow(tx, moving ? targetId : current.checklistId);
 
     const patch: Partial<typeof checklistItems.$inferInsert> = { ...definedOnly(fields), updatedAt: now };
+    if (fields.paidTotal === null) patch.paidCurrency = null;
+    else if (fields.paidTotal !== undefined) patch.paidCurrency = fields.paidCurrency ?? current.paidCurrency ?? 'CHF';
     if (state) Object.assign(patch, statePatch(current, state, list.kind, now));
     if (moving) {
       patch.checklistId = targetId;
-      if (list.kind !== 'buy' && (patch.state ?? current.state) === 'ordered') Object.assign(patch, { state: 'open', orderedAt: null });
+      if (list.kind !== 'buy' && (patch.state ?? current.state) === 'ordered') Object.assign(patch, { state: 'open', orderedAt: null, paidTotal: null, paidCurrency: null });
     }
     if (moving || position !== undefined) patch.sortKey = keyAt(itemKeys(tx, list.id, id), position);
 

@@ -39,6 +39,26 @@ describe('buyOverview', () => {
     expect(byShop[0]).toMatchObject({ totals: [], unpriced: 1 });
   });
 
+  it('treats a shop name and its domain as one shop', () => {
+    const { list } = buyList('Rack');
+    addItems(ctx, list.id, [
+      { text: 'Relay', links: [{ url: 'https://www.galaxus.ch/1', shop: 'galaxus.ch', price: 40.4, currency: 'CHF' }] },
+      { text: 'Meter', links: [{ url: 'https://www.galaxus.ch/2', shop: 'Galaxus', price: 71.9, currency: 'CHF' }] },
+    ]);
+    const { byShop } = buyOverview(ctx);
+    expect(byShop).toHaveLength(1);
+    expect(byShop[0]).toMatchObject({ name: 'Galaxus', totals: [{ currency: 'CHF', amount: 112.3 }] });
+  });
+
+  it('keeps the amount paid for an order until the item is back on the list', () => {
+    const { list } = buyList('Rack');
+    const [item] = addItems(ctx, list.id, [{ text: 'Relay' }]);
+    expect(updateItem(ctx, item!.id, { state: 'ordered', paidTotal: 44.9 })).toMatchObject({ paidTotal: 44.9, paidCurrency: 'CHF' });
+    expect(updateItem(ctx, item!.id, { paidTotal: 40, paidCurrency: 'eur' })).toMatchObject({ paidTotal: 40, paidCurrency: 'EUR' });
+    expect(updateItem(ctx, item!.id, { state: 'done' })).toMatchObject({ paidTotal: 40 });
+    expect(updateItem(ctx, item!.id, { state: 'open' })).toMatchObject({ paidTotal: null, paidCurrency: null });
+  });
+
   it('keeps currencies apart', () => {
     const { list } = buyList('Rack');
     addItems(ctx, list.id, [

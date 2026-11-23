@@ -3,7 +3,17 @@ import { CloseIcon } from './icons.tsx';
 import { inputClass } from './Sheet.tsx';
 
 /** A date input that opens its picker on click and can be cleared. */
-export function DateField({ id, value, onCommit }: { id: string; value: string | null; onCommit: (date: string | null) => void }) {
+export function DateField({
+  id,
+  value,
+  onCommit,
+  clearLabel = 'Clear due date',
+}: {
+  id: string;
+  value: string | null;
+  onCommit: (date: string | null) => void;
+  clearLabel?: string;
+}) {
   const [text, setText] = useState(value ?? '');
   useEffect(() => setText(value ?? ''), [value]);
 
@@ -39,7 +49,7 @@ export function DateField({ id, value, onCommit }: { id: string; value: string |
             setText('');
             onCommit(null);
           }}
-          aria-label="Clear due date"
+          aria-label={clearLabel}
           className="flex size-11 shrink-0 items-center justify-center rounded-full text-muted hover:bg-ground"
         >
           <CloseIcon width={18} height={18} />

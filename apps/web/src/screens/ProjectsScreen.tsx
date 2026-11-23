@@ -10,13 +10,14 @@ import { useProjects } from '../lib/queries.ts';
 import { useTagFilter } from '../useRoute.ts';
 import { NewProjectSheet } from './NewProjectSheet.tsx';
 
-const SECTIONS: { status: ProjectStatus; label: string }[] = [
-  { status: 'active', label: 'Active' },
-  { status: 'waiting', label: 'Waiting' },
-  { status: 'planned', label: 'Planned' },
-  { status: 'idea', label: 'Ideas' },
-  { status: 'done', label: 'Done' },
-  { status: 'archived', label: 'Archived' },
+/** `column` places the section on the wide status board, where Waiting comes after Ideas. */
+const SECTIONS: { status: ProjectStatus; label: string; column: string }[] = [
+  { status: 'active', label: 'Active', column: '2xl:order-1' },
+  { status: 'waiting', label: 'Waiting', column: '2xl:order-4' },
+  { status: 'planned', label: 'Planned', column: '2xl:order-2' },
+  { status: 'idea', label: 'Ideas', column: '2xl:order-3' },
+  { status: 'done', label: 'Done', column: '2xl:order-5' },
+  { status: 'archived', label: 'Archived', column: '2xl:order-6' },
 ];
 
 const SORTS = [
@@ -39,6 +40,8 @@ export function ProjectsScreen({ navigate }: { navigate: (to: string) => void })
   const [searching, setSearching] = useState(false);
   const [viewOpen, setViewOpen] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [layout, setLayout] = useState<'board' | 'grid'>('board');
+  const board = layout === 'board';
   const [tag, setTag] = useTagFilter();
   const status = showDone || showArchived ? 'all' : 'open';
   const projects = useProjects({ status, sort, q: q.trim() || undefined, tag: tag ?? undefined });
@@ -55,8 +58,29 @@ export function ProjectsScreen({ navigate }: { navigate: (to: string) => void })
     <>
       <header className="flex flex-col gap-3 px-5 pt-5 pb-2 md:px-8 md:pt-8">
         <div className="flex items-center justify-between gap-3">
-          <h1 className="font-display text-[32px] font-semibold tracking-tight">Projects</h1>
+          <div className="flex items-baseline gap-3.5">
+            <h1 className="font-display text-[32px] font-semibold tracking-tight">Projects</h1>
+            {shown && <span className="hidden text-sm text-muted xl:inline">{shown.length} shown</span>}
+          </div>
           <div className="flex items-center gap-2">
+            <label className="hidden h-11 w-65 items-center gap-2 rounded-[10px] border border-line bg-surface px-3 text-muted xl:flex">
+              <SearchIcon width={16} height={16} />
+              <span className="sr-only">Filter projects</span>
+              <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Filter projects" className="min-w-0 flex-1 bg-transparent text-sm text-ink outline-none" />
+            </label>
+            <div role="group" aria-label="Layout" className="hidden rounded-[10px] bg-line p-[3px] 2xl:flex">
+              {(['grid', 'board'] as const).map((l) => (
+                <button
+                  key={l}
+                  type="button"
+                  aria-pressed={layout === l}
+                  onClick={() => setLayout(l)}
+                  className={`h-[38px] rounded-lg px-3 text-[13px] font-semibold capitalize ${layout === l ? 'bg-surface shadow-sm' : 'text-ink-soft'}`}
+                >
+                  {l}
+                </button>
+              ))}
+            </div>
             <button
               type="button"
               aria-label="Search projects"
@@ -65,7 +89,7 @@ export function ProjectsScreen({ navigate }: { navigate: (to: string) => void })
                 if (searching) setQ('');
                 setSearching(!searching);
               }}
-              className="flex size-11 items-center justify-center rounded-full border border-line bg-surface"
+              className="flex size-11 items-center justify-center rounded-full border border-line bg-surface xl:hidden"
             >
               <SearchIcon width={20} height={20} />
             </button>
@@ -88,7 +112,7 @@ export function ProjectsScreen({ navigate }: { navigate: (to: string) => void })
           </div>
         </div>
         {searching && (
-          <label className="flex h-11 items-center gap-2 rounded-xl border border-line bg-surface px-3 text-muted md:max-w-md">
+          <label className="flex h-11 items-center gap-2 rounded-xl border border-line bg-surface px-3 text-muted md:max-w-md xl:hidden">
             <SearchIcon width={18} height={18} />
             <span className="sr-only">Filter projects by title</span>
             <input
@@ -104,7 +128,11 @@ export function ProjectsScreen({ navigate }: { navigate: (to: string) => void })
         <TagFilter value={tag} onChange={setTag} allCount={shown?.length} />
       </header>
 
-      <main className="flex flex-1 flex-col gap-2.5 px-4 pt-1 pb-32 md:px-8 md:pb-10">
+      <main
+        className={`flex flex-1 flex-col gap-2.5 px-4 pt-1 pb-32 md:px-8 md:pb-10 ${
+          board && shown?.length ? '2xl:grid 2xl:flex-none 2xl:auto-cols-[minmax(0,1fr)] 2xl:grid-flow-col 2xl:items-start 2xl:gap-4' : ''
+        }`}
+      >
         {!shown ? (
           <QueryFallback query={projects} />
         ) : shown.length === 0 ? (
@@ -122,26 +150,45 @@ export function ProjectsScreen({ navigate }: { navigate: (to: string) => void })
             </button>
           </div>
         ) : (
-          SECTIONS.map(({ status: s, label }) => {
+          SECTIONS.map(({ status: s, label, column }) => {
             const members = shown.filter((p) => p.status === s);
-            if (members.length === 0) return null;
+            // The board keeps its Waiting column even when nothing is waiting.
+            const emptyColumn = members.length === 0 && s === 'waiting' && board && !filtered;
+            if (members.length === 0 && !emptyColumn) return null;
             const compact = s === 'idea' || s === 'archived';
             return (
-              <section key={s} className="flex flex-col gap-2.5" aria-labelledby={`section-${s}`}>
+              <section
+                key={s}
+                className={`flex-col gap-2.5 ${emptyColumn ? 'hidden 2xl:flex' : 'flex'} ${board ? `${column} 2xl:rounded-2xl 2xl:bg-line-soft 2xl:p-3` : ''}`}
+                aria-labelledby={`section-${s}`}
+              >
                 <h2 id={`section-${s}`} className="mx-1 mt-1.5 text-[13px] font-semibold tracking-[0.06em] text-muted uppercase">
                   {label} · {members.length}
                 </h2>
-                <ul className="grid gap-2.5 md:grid-cols-2 xl:grid-cols-3">
-                  {members.map((p) => (
-                    <li key={p.id}>
-                      {compact ? (
-                        <ProjectRow project={p} href={`/projects/${p.id}`} onClick={open(p.id)} />
-                      ) : (
-                        <ProjectCard project={p} href={`/projects/${p.id}`} onClick={open(p.id)} />
-                      )}
-                    </li>
-                  ))}
-                </ul>
+                {emptyColumn ? (
+                  <p className="rounded-[14px] border border-dashed border-line-strong px-4 py-5 text-center text-[13px] leading-snug text-muted">Projects waiting on someone else show up here.</p>
+                ) : (
+                  <ul className={`grid gap-2.5 md:grid-cols-2 xl:grid-cols-3 ${board ? '2xl:grid-cols-1' : ''}`}>
+                    {members.map((p) => (
+                      <li key={p.id}>
+                        {compact ? (
+                          <>
+                            <div className={board ? '2xl:hidden' : ''}>
+                              <ProjectRow project={p} href={`/projects/${p.id}`} onClick={open(p.id)} />
+                            </div>
+                            {board && (
+                              <div className="hidden h-full 2xl:block">
+                                <ProjectCard project={p} href={`/projects/${p.id}`} onClick={open(p.id)} />
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <ProjectCard project={p} href={`/projects/${p.id}`} onClick={open(p.id)} />
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </section>
             );
           })

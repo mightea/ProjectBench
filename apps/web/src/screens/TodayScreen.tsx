@@ -4,9 +4,10 @@ import { CalendarIcon, CheckIcon, ChevronRightIcon, SettingsIcon } from '../comp
 import { ProjectTile } from '../components/ProjectTile.tsx';
 import { QueryFallback } from '../components/QueryFallback.tsx';
 import { TagFilter } from '../components/TagFilter.tsx';
-import { dueTone, dueToneClass, formatDue, formatPrice, KIND_META } from '../lib/format.ts';
+import { groupOrders, type Order, orderAmount } from '../lib/buy.ts';
+import { dueTone, dueToneClass, formatDue, KIND_META } from '../lib/format.ts';
 import { useAgenda, useBuyOverview, useItemState, useMarkReceived, useProjects } from '../lib/queries.ts';
-import { itemShop, StateMark } from '../project/ItemRow.tsx';
+import { StateMark } from '../project/ItemRow.tsx';
 import { useTagFilter } from '../useRoute.ts';
 import { appLink, DailyItem, type Navigate } from './DailyItem.tsx';
 
@@ -66,10 +67,12 @@ function AgendaView({ agenda: a, buy, projects, tag, navigate }: AgendaProps) {
 
   return (
     <>
-      <div className="grid grid-cols-3 gap-2 md:gap-3">
+      <div className="grid grid-cols-3 gap-2 md:gap-3 xl:grid-cols-4 2xl:grid-cols-5">
         <Stat value={buy?.ordered.length ?? '–'} label="On the way" to="/buy" navigate={navigate} warn={(buy?.ordered.length ?? 0) > 0} />
         <Stat value={toBuy ?? '–'} label="To buy" to="/buy" navigate={navigate} />
         <Stat value={a.openQuestions.length} label="To clarify" to="/projects" navigate={navigate} />
+        <Stat value={overdueCount} label="Overdue" to="/today" navigate={navigate} display="hidden xl:flex" />
+        <Stat value={projects.filter((p) => p.status === 'active').length} label="Active projects" to="/projects" navigate={navigate} display="hidden 2xl:flex" />
       </div>
 
       {overdueCount + weekCount === 0 && (
@@ -79,8 +82,8 @@ function AgendaView({ agenda: a, buy, projects, tag, navigate }: AgendaProps) {
         </p>
       )}
 
-      <div className="grid gap-[18px] lg:grid-cols-2 lg:items-start">
-        <div className="flex min-w-0 flex-col gap-[18px]">
+      <div className="grid gap-[18px] lg:grid-cols-2 lg:items-start xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] xl:gap-5 2xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)]">
+        <div className="flex min-w-0 flex-col gap-[18px] xl:col-start-1 xl:row-start-1">
           {overdueCount > 0 && (
             <Section title="Overdue" danger>
               {overdue.map(({ item, date }) => (
@@ -112,11 +115,11 @@ function AgendaView({ agenda: a, buy, projects, tag, navigate }: AgendaProps) {
           )}
         </div>
 
-        <div className="flex min-w-0 flex-col gap-[18px]">
+        <div className="flex min-w-0 flex-col gap-[18px] xl:col-start-2 xl:row-span-2 xl:row-start-1 2xl:row-span-1">
           {buy && buy.ordered.length > 0 && <Deliveries items={buy.ordered} projects={projects} navigate={navigate} />}
 
           {blocked.length > 0 && (
-            <section className="flex flex-col gap-2">
+            <section className="flex flex-col gap-2 xl:hidden">
               <SectionTitle>Questions blocking work</SectionTitle>
               <div className="flex flex-col gap-2">
                 {blocked.map((p) => {
@@ -159,14 +162,55 @@ function AgendaView({ agenda: a, buy, projects, tag, navigate }: AgendaProps) {
             </section>
           )}
         </div>
+
+        {a.openQuestions.length > 0 && <OpenQuestions items={a.openQuestions} projects={projects} navigate={navigate} />}
       </div>
     </>
   );
 }
 
-function Stat({ value, label, to, navigate, warn = false }: { value: number | string; label: string; to: string; navigate: Navigate; warn?: boolean }) {
+/** Wide screens only: open questions per project, with the first one to answer. */
+function OpenQuestions({ items, projects, navigate }: { items: ItemWithContext[]; projects: ProjectSummary[]; navigate: Navigate }) {
+  const ids = [...new Set(items.map((i) => i.projectId))];
+  const groups = ids
+    .map((id) => ({ id, members: items.filter((i) => i.projectId === id) }))
+    .sort((a, b) => b.members.length - a.members.length);
   return (
-    <a {...appLink(to, navigate)} className="flex h-full min-h-11 flex-col gap-0.5 rounded-xl border border-line bg-surface px-3 py-2.5 hover:border-line-strong">
+    <section className="hidden min-w-0 flex-col gap-2 xl:col-start-1 xl:row-start-2 xl:flex 2xl:col-start-3 2xl:row-start-1">
+      <SectionTitle>{`Open questions · ${items.length}`}</SectionTitle>
+      <div className="overflow-hidden rounded-2xl border border-line bg-surface">
+        {groups.map(({ id, members }) => (
+          <a key={id} {...appLink(`/projects/${id}`, navigate)} className="flex min-h-14 items-center gap-3 border-b border-line-soft px-4 py-3 last:border-b-0 hover:bg-ground">
+            <ProjectTile project={projects.find((p) => p.id === id) ?? { id, color: null }} size={32} />
+            <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+              <span className="truncate text-sm font-semibold">{members[0]!.projectTitle}</span>
+              <span className="truncate text-xs text-muted">{members[0]!.text}</span>
+            </span>
+            <span className="font-display text-lg font-semibold text-warning-ink">{members.length}</span>
+          </a>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function Stat({
+  value,
+  label,
+  to,
+  navigate,
+  warn = false,
+  display = 'flex',
+}: {
+  value: number | string;
+  label: string;
+  to: string;
+  navigate: Navigate;
+  warn?: boolean;
+  display?: string;
+}) {
+  return (
+    <a {...appLink(to, navigate)} className={`${display} h-full min-h-11 flex-col gap-0.5 rounded-xl border border-line bg-surface px-3 py-2.5 hover:border-line-strong`}>
       <span className={`font-display text-[22px] font-semibold ${warn ? 'text-warning-ink' : ''}`}>{value}</span>
       <span className="text-xs font-medium text-muted">{label}</span>
     </a>
@@ -216,23 +260,8 @@ function NextStepRow({ project: p, navigate }: { project: ProjectSummary; naviga
   );
 }
 
-function orderTotal(items: ItemWithContext[]) {
-  const totals = new Map<string, number>();
-  for (const item of items) {
-    const link = item.links.find((l) => l.preferred) ?? item.links[0];
-    if (link?.price == null) continue;
-    const currency = link.currency ?? 'CHF';
-    totals.set(currency, (totals.get(currency) ?? 0) + link.price * (item.quantity ?? 1));
-  }
-  return [...totals].map(([currency, amount]) => formatPrice(amount, currency)).join(' + ');
-}
-
 function Deliveries({ items, projects, navigate }: { items: ItemWithContext[]; projects: ProjectSummary[]; navigate: Navigate }) {
-  const groups = new Map<string, ItemWithContext[]>();
-  for (const item of items) {
-    const key = itemShop(item)?.toLowerCase() ?? '';
-    groups.set(key, [...(groups.get(key) ?? []), item]);
-  }
+  const orders = groupOrders(items);
   const withoutDate = items.filter((i) => !i.expectedDate).length;
 
   return (
@@ -242,8 +271,8 @@ function Deliveries({ items, projects, navigate }: { items: ItemWithContext[]; p
         <span className="mr-1 text-xs text-muted">tap to mark received</span>
       </div>
       <div className="overflow-hidden rounded-2xl border border-line bg-surface">
-        {[...groups.entries()].map(([key, members]) => (
-          <DeliveryRow key={key} items={members} projects={projects} />
+        {orders.map((order) => (
+          <DeliveryRow key={order.key} order={order} projects={projects} />
         ))}
         {withoutDate > 0 && (
           <a {...appLink('/buy', navigate)} className="flex min-h-12 items-center gap-2 bg-warning-soft px-3.5 py-2 text-[13px] font-semibold text-warning-ink">
@@ -256,17 +285,18 @@ function Deliveries({ items, projects, navigate }: { items: ItemWithContext[]; p
   );
 }
 
-function DeliveryRow({ items, projects }: { items: ItemWithContext[]; projects: ProjectSummary[] }) {
+function DeliveryRow({ order, projects }: { order: Order; projects: ProjectSummary[] }) {
   const received = useMarkReceived();
+  const { items } = order;
   const first = items[0]!;
-  const shop = itemShop(first) ?? 'No shop';
+  const shop = order.shop ?? 'No shop';
   const projectIds = [...new Set(items.map((i) => i.projectId))];
   const project = projects.find((p) => p.id === first.projectId) ?? { id: first.projectId, color: null };
   const orderedAt = items.map((i) => i.orderedAt).filter((d): d is string => d !== null).sort()[0];
   const details = [
     projectIds.length === 1 ? first.projectTitle : `${projectIds.length} projects`,
     orderedAt && `ordered ${formatDue(orderedAt.slice(0, 10))}`,
-    orderTotal(items),
+    orderAmount(order),
   ]
     .filter(Boolean)
     .join(' · ');

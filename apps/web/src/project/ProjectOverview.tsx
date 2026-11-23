@@ -23,7 +23,7 @@ export function OverviewTiles({ project, onJump }: { project: ProjectDetail; onJ
   const kinds = (['buy', 'clarify', 'todo'] as const).filter((k) => project.checklists.some((c) => c.kind === k));
   if (kinds.length === 0) return null;
   return (
-    <div className="flex gap-2 lg:col-start-1">
+    <div className="flex gap-2 lg:col-start-1 xl:row-start-2 2xl:row-start-1">
       {kinds.map((kind) => {
         const lists = project.checklists.filter((c) => c.kind === kind);
         const t = tileText(kind, lists.flatMap((c) => c.items));

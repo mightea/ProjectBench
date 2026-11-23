@@ -8,6 +8,7 @@ import { ProjectTile } from '../components/ProjectTile.tsx';
 import { ThemeToggle } from '../components/ThemeToggle.tsx';
 import { STATUS_META } from '../lib/format.ts';
 import { useProjects, useTags } from '../lib/queries.ts';
+import { CONTENT_WIDTH } from '../lib/look.ts';
 import { ProjectScreen } from '../project/ProjectScreen.tsx';
 import { useRoute, useTagFilter } from '../useRoute.ts';
 import { BuyScreen } from './BuyScreen.tsx';
@@ -108,7 +109,7 @@ export function Shell() {
   return (
     <div className="flex min-h-dvh">
       {/* Desktop sidebar */}
-      <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col gap-5 border-r border-line bg-surface px-3.5 py-5 md:flex">
+      <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 xl:w-62 2xl:w-68 flex-col gap-5 border-r border-line bg-surface px-3.5 py-5 md:flex">
         <div className="flex items-center gap-2.5 px-2">
           <Logo className="size-8" />
           <span className="font-display text-lg font-semibold">ProjectBench</span>
@@ -128,6 +129,7 @@ export function Shell() {
               >
                 <t.Icon width={18} height={18} />
                 {t.path === '/projects' ? 'All projects' : t.label}
+                {t.path === '/projects' && !!projects.data?.length && <span className="ml-auto text-xs font-medium text-muted">{projects.data.length}</span>}
                 {t.path === '/buy' && toBuy > 0 && <span className="ml-auto text-xs text-muted">{toBuy}</span>}
                 {t.path === '/search' && (
                   <kbd className="ml-auto rounded border border-line px-1.5 py-0.5 font-sans text-[11px] font-medium text-muted">{isMac ? '⌘K' : 'Ctrl K'}</kbd>
@@ -217,7 +219,8 @@ export function Shell() {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <OfflineBanner />
-        <div className="mx-auto flex w-full max-w-[84rem] flex-1 flex-col">{content}</div>
+        {/* A project's header band runs full width, so it caps its own content. */}
+        <div className={`mx-auto flex w-full flex-1 flex-col ${projectMatch ? '' : CONTENT_WIDTH}`}>{content}</div>
 
         {/* Mobile tab bar, hidden inside a project */}
         {!projectMatch && (

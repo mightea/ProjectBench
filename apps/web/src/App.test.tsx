@@ -141,7 +141,7 @@ describe('App', () => {
     expect(within(screen.getByRole('main')).getByText('1 on the way')).toBeTruthy();
   });
 
-  it('groups the buy list by shop with totals and switches to projects', async () => {
+  it('shows a shop basket with its total and opens the mark ordered sheet', async () => {
     const item = { ...project.checklists[0]!.items[0]!, projectId: 'p1', projectTitle: project.title, checklistTitle: 'To buy', checklistKind: 'buy' };
     renderApp(
       signedIn,
@@ -155,9 +155,9 @@ describe('App', () => {
       '/buy',
     );
     const shop = await screen.findByRole('region', { name: 'galaxus.ch' });
-    expect(within(shop).getByText('CHF 63.60')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'By project' }));
-    expect(await screen.findByRole('region', { name: project.title })).toBeTruthy();
+    expect(within(shop).getAllByText('CHF 63.60').length).toBeGreaterThan(0);
+    fireEvent.click(within(shop).getByRole('button', { name: 'Mark ordered…' }));
+    expect(await screen.findByRole('dialog', { name: 'Ordered at galaxus.ch' })).toBeTruthy();
   });
 
   it('groups search results by type', async () => {
