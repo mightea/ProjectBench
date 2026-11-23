@@ -27,7 +27,7 @@ export default defineConfig({
       },
       workbox: {
         navigateFallback: '/index.html',
-        navigateFallbackDenylist: [/^\/api\//, /^\/files\//, /^\/mcp/],
+        navigateFallbackDenylist: [/^\/api\//, /^\/files\//, /^\/mcp/, /^\/oauth\//, /^\/\.well-known\//],
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
         // Thumbnails seen online stay readable offline. Full files are not kept on the device.
         runtimeCaching: [
@@ -50,6 +50,8 @@ export default defineConfig({
       '/api': 'http://localhost:8787',
       '/mcp': 'http://localhost:8787',
       '/files': 'http://localhost:8787',
+      '/oauth': 'http://localhost:8787',
+      '/.well-known': 'http://localhost:8787',
     },
   },
   test: {

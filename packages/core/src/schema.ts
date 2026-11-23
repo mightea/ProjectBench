@@ -222,3 +222,64 @@ export const passkeys = sqliteTable('passkeys', {
   createdAt: createdAt(),
   lastUsedAt: text('last_used_at'),
 });
+
+/** Apps that may ask for access through OAuth: registered dynamically or by metadata URL. */
+export const oauthClients = sqliteTable('oauth_clients', {
+  /** A random id, or for metadata clients the URL of their metadata document. */
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  /** JSON array */
+  redirectUris: text('redirect_uris').notNull(),
+  kind: text('kind', { enum: ['dcr', 'cimd'] }).notNull(),
+  fetchedAt: text('fetched_at'),
+  createdAt: createdAt(),
+});
+
+/** One approved connection. Removing it ends all of its tokens. */
+export const oauthGrants = sqliteTable(
+  'oauth_grants',
+  {
+    id: text('id').primaryKey(),
+    clientId: text('client_id')
+      .notNull()
+      .references(() => oauthClients.id, { onDelete: 'cascade' }),
+    scope: text('scope').notNull(),
+    /** The MCP endpoint these tokens are valid for (RFC 8707). */
+    resource: text('resource').notNull(),
+    createdAt: createdAt(),
+    lastUsedAt: text('last_used_at'),
+  },
+  (t) => [index('oauth_grants_client_idx').on(t.clientId)],
+);
+
+/** Single-use authorization codes. Only a hash is stored. */
+export const oauthCodes = sqliteTable('oauth_codes', {
+  codeHash: text('code_hash').primaryKey(),
+  clientId: text('client_id')
+    .notNull()
+    .references(() => oauthClients.id, { onDelete: 'cascade' }),
+  redirectUri: text('redirect_uri').notNull(),
+  codeChallenge: text('code_challenge').notNull(),
+  scope: text('scope').notNull(),
+  resource: text('resource').notNull(),
+  expiresAt: text('expires_at').notNull(),
+  consumedAt: text('consumed_at'),
+  /** Set on exchange, so a replayed code can end the connection it created. */
+  grantId: text('grant_id'),
+});
+
+/** Access and refresh tokens. Only a SHA-256 hash is stored. */
+export const oauthTokens = sqliteTable(
+  'oauth_tokens',
+  {
+    tokenHash: text('token_hash').primaryKey(),
+    grantId: text('grant_id')
+      .notNull()
+      .references(() => oauthGrants.id, { onDelete: 'cascade' }),
+    kind: text('kind', { enum: ['access', 'refresh'] }).notNull(),
+    expiresAt: text('expires_at').notNull(),
+    /** Refresh tokens only: when this token was exchanged for a new one. */
+    rotatedAt: text('rotated_at'),
+  },
+  (t) => [index('oauth_tokens_grant_idx').on(t.grantId), index('oauth_tokens_expiry_idx').on(t.expiresAt)],
+);

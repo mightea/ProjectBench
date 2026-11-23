@@ -5,6 +5,7 @@ import { Logo } from './components/Logo.tsx';
 import { clearOfflineData } from './lib/offline.ts';
 import { passkeysUsable } from './lib/passkeys.ts';
 import { AuthScreen } from './screens/AuthScreen.tsx';
+import { ConsentScreen } from './screens/ConsentScreen.tsx';
 import { Shell } from './screens/Shell.tsx';
 
 export function App() {
@@ -48,6 +49,8 @@ export function App() {
       />
     );
   }
+
+  if (window.location.pathname === '/authorize') return <ConsentScreen />;
 
   return <Shell />;
 }

@@ -1,5 +1,5 @@
 import { serve } from '@hono/node-server';
-import { deleteExpiredSessions, hasPassword, openDb, setPassword } from '@projectbench/core';
+import { deleteExpiredSessions, hasPassword, openDb, pruneOAuth, setPassword } from '@projectbench/core';
 import { createApp } from './app.ts';
 import { loadConfig, VERSION } from './config.ts';
 
@@ -19,7 +19,10 @@ const server = serve({ fetch: app.fetch, port: config.port }, (info) => {
   if (!hasPassword(db)) console.log(`No password set yet. Open ${config.publicUrl} to choose one.`);
 });
 
-const cleanup = setInterval(() => deleteExpiredSessions(db), 60 * 60_000);
+const cleanup = setInterval(() => {
+  deleteExpiredSessions(db);
+  pruneOAuth(db);
+}, 60 * 60_000);
 cleanup.unref();
 
 const shutdown = () => {
