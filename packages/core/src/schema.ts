@@ -190,3 +190,15 @@ export const sessions = sqliteTable('sessions', {
   createdAt: createdAt(),
   lastSeenAt: text('last_seen_at'),
 });
+
+/** Bearer tokens for the MCP server. Only a SHA-256 hash of the token is stored. */
+export const apiTokens = sqliteTable('api_tokens', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  tokenHash: text('token_hash').notNull().unique(),
+  /** First characters of the token, so it can be recognised in the settings. */
+  prefix: text('prefix').notNull(),
+  createdAt: createdAt(),
+  lastUsedAt: text('last_used_at'),
+  revokedAt: text('revoked_at'),
+});

@@ -2,9 +2,9 @@
 
 [![CI](https://github.com/mightea/ProjectBench/actions/workflows/ci.yml/badge.svg)](https://github.com/mightea/ProjectBench/actions/workflows/ci.yml)
 
-A small self-hosted app for personal projects: checklists for things to buy and questions to clarify, notes, photos and files, priorities and due dates. It is built phone-first as an installable web app (PWA), and an MCP server will let Claude read and update projects.
+A small self-hosted app for personal projects: checklists for things to buy and questions to clarify, notes, photos and files, priorities and due dates. It is built phone-first as an installable web app (PWA), and an MCP server lets Claude read and update projects.
 
-**Status:** phase 2 of 6. You can create projects with priority, status, due date and tags, and manage checklists (to buy, to clarify, to do) with shop links, an ordered state and drag-to-reorder. The MCP server comes in phase 3.
+**Status:** phase 3 of 6. You can manage projects and checklists (to buy, to clarify, to do) with shop links, an ordered state and drag-to-reorder, and connect Claude through MCP. Notes and attachments in the app come in phase 4.
 
 ## Stack
 
@@ -16,9 +16,10 @@ A small self-hosted app for personal projects: checklists for things to buy and 
 | Tests | Vitest |
 
 ```
-packages/core   database schema, migrations, auth, services and input schemas (shared by REST API and, later, MCP)
-apps/server     Hono server: /api/*, serves the built PWA
+packages/core   database schema, migrations, auth, services and input schemas (shared by REST API and MCP)
+apps/server     Hono server: /api/*, /mcp, serves the built PWA
 apps/web        React PWA
+apps/mcp-stdio  stdio bridge to /mcp for MCP clients that don't speak HTTP
 ```
 
 ## Development
@@ -35,10 +36,10 @@ Open http://localhost:5173. On the first visit you choose the login password.
 
 | Command | What it does |
 | --- | --- |
-| `pnpm dev` | Server (tsx watch) and Vite dev server; Vite proxies `/api` to the server |
+| `pnpm dev` | Server (tsx watch) and Vite dev server; Vite proxies `/api` and `/mcp` to the server |
 | `pnpm test` | All tests |
 | `pnpm typecheck` | TypeScript checks for every package |
-| `pnpm build` | Builds the PWA and bundles the server into `apps/server/dist` |
+| `pnpm build` | Builds the PWA and bundles the server and stdio bridge into their `dist` folders |
 | `pnpm start` | Runs the built server, serving the PWA on :8787 |
 | `pnpm db:generate` | Creates a new SQL migration after changing `packages/core/src/schema.ts` |
 
@@ -52,6 +53,38 @@ Migrations run automatically when the server starts.
 | `PORT` | `8787` | HTTP port |
 | `PUBLIC_URL` | `http://localhost:8787` | Public address; an `https://` URL turns on Secure cookies |
 | `INITIAL_PASSWORD` | – | Sets the login password on first start instead of the setup screen |
+
+## Connecting Claude (MCP)
+
+Create a token under **Settings → Claude access**. It is shown once and stored only as a hash; revoke it there at any time.
+
+Claude Code, over HTTP:
+
+```sh
+claude mcp add --transport http projectbench https://projectbench.example.com/mcp \
+  --header "Authorization: Bearer pb_your_token"
+```
+
+Clients that need stdio, such as Claude Desktop, can use the bridge after `pnpm build`:
+
+```json
+{
+  "mcpServers": {
+    "projectbench": {
+      "command": "node",
+      "args": ["/path/to/ProjectBench/apps/mcp-stdio/dist/index.js"],
+      "env": {
+        "PROJECTBENCH_URL": "https://projectbench.example.com",
+        "PROJECTBENCH_TOKEN": "pb_your_token"
+      }
+    }
+  }
+}
+```
+
+Tools: `list_projects`, `get_project`, `create_project`, `update_project`, `add_items`, `update_item`, `set_item_links`, `add_note`, `search`, `agenda`, `shopping_list` and `open_questions`. Projects can be named by id or title. Claude can't delete projects, checklists or items, and its changes are logged with the actor `mcp`.
+
+A custom connector in the Claude phone app needs public HTTPS and OAuth, which ProjectBench doesn't offer yet.
 
 ## Releases
 
@@ -88,7 +121,7 @@ Back up the dataset with TrueNAS snapshots. A safe copy of the database while th
 
 1. **Skeleton** – schema, server, login, PWA shell, Docker ← *done*
 2. **Projects and checklists** ← *done*
-3. MCP server
+3. **MCP server** ← *done*
 4. Notes and attachments
 5. Daily-use polish (Today, Buy, search, offline reading)
 6. Extras (iCal feed, reminders, export)

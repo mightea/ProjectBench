@@ -1,6 +1,7 @@
 import {
   addItems,
   addLink,
+  createApiToken,
   createChecklist,
   createProject,
   deleteChecklist,
@@ -10,9 +11,11 @@ import {
   getProject,
   InvalidOperationError,
   itemsCreateSchema,
+  listApiTokens,
   listProjects,
   listTags,
   NotFoundError,
+  revokeApiToken,
   updateChecklist,
   updateItem,
   updateLink,
@@ -93,6 +96,14 @@ export function apiRoutes(db: Db) {
 
   // Tags
   api.get('/tags', (c) => c.json(listTags(db)));
+
+  // MCP tokens
+  api.get('/tokens', (c) => c.json(listApiTokens(ctx)));
+  api.post('/tokens', async (c) => {
+    c.header('Cache-Control', 'no-store');
+    return c.json(createApiToken(ctx, (await body(c)) as never), 201);
+  });
+  api.delete('/tokens/:id', (c) => c.json(revokeApiToken(ctx, c.req.param('id'))));
 
   return api;
 }

@@ -10,16 +10,19 @@ import {
   MIN_PASSWORD_LENGTH,
   SESSION_TTL_DAYS,
   setPassword,
+  validateApiToken,
   validateSession,
   type Db,
 } from '@projectbench/core';
 import { sql } from 'drizzle-orm';
 import { Hono, type Context } from 'hono';
+import { bodyLimit } from 'hono/body-limit';
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
 import { csrf } from 'hono/csrf';
 import { secureHeaders } from 'hono/secure-headers';
 import { z } from 'zod';
 import { VERSION, type Config } from './config.ts';
+import { handleMcpRequest } from './mcp.ts';
 import { FailureLimiter } from './rate-limit.ts';
 import { apiRoutes } from './routes.ts';
 
@@ -121,6 +124,27 @@ export function createApp({ db, config, limiter = new FailureLimiter() }: AppDep
   app.route('/api', apiRoutes(db));
 
   app.all('/api/*', (c) => c.json({ error: 'Not found' }, 404));
+
+  // --- MCP: bearer token only, session cookies are not accepted ----------------
+
+  app.use('/mcp', async (c, next) => {
+    const [scheme, token] = c.req.header('authorization')?.split(' ') ?? [];
+    if (scheme?.toLowerCase() !== 'bearer' || !validateApiToken(db, token)) {
+      c.header('WWW-Authenticate', 'Bearer');
+      return c.json({ error: 'Invalid or missing token' }, 401);
+    }
+    await next();
+  });
+  app.post(
+    '/mcp',
+    bodyLimit({ maxSize: 2 * 1024 * 1024, onError: (c) => c.json({ error: 'Request too large' }, 413) }),
+    (c) => handleMcpRequest(db, c.req.raw),
+  );
+  // Stateless server: no event stream to open and no session to end.
+  app.all('/mcp', (c) => {
+    c.header('Allow', 'POST');
+    return c.json({ error: 'Method not allowed' }, 405);
+  });
 
   // --- The PWA ----------------------------------------------------------------
 

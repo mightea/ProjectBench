@@ -19,6 +19,14 @@ export const CalendarIcon = (p: SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
+export const SettingsIcon = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base} {...p}>
+    <path d="M4 7h9M17 7h3M4 17h3M11 17h9" />
+    <circle cx="15" cy="7" r="2" />
+    <circle cx="9" cy="17" r="2" />
+  </svg>
+);
+
 export const GridIcon = (p: SVGProps<SVGSVGElement>) => (
   <svg {...base} {...p}>
     <rect x="3" y="3" width="7" height="7" rx="2" />

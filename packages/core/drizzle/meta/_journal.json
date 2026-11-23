@@ -15,6 +15,13 @@
       "when": 1795361114321,
       "tag": "0001_search_fts",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1795438168283,
+      "tag": "0002_api_tokens",
+      "breakpoints": true
     }
   ]
 }

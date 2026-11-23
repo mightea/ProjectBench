@@ -10,11 +10,13 @@ Self-hosted, phone-first app for personal projects: checklists (to buy, to clari
 
 ```
 packages/core   SQLite schema (Drizzle), migrations, auth, services, shared Zod schemas
-apps/server     Hono: /api/* REST routes, serves the built PWA (later also /mcp)
+apps/server     Hono: /api/* REST routes, /mcp (stateless Streamable HTTP), serves the built PWA
 apps/web        React + Vite + TanStack Query + Tailwind PWA
+apps/mcp-stdio  stdio bridge to /mcp; never opens the database
 ```
 
-- All business rules live in `packages/core/src/services/`. REST routes (and the coming MCP server) are thin adapters that call these services, so app and Claude behave the same.
+- All business rules live in `packages/core/src/services/`. REST routes and MCP tools (`apps/server/src/mcp.ts`) are thin adapters that call these services, so app and Claude behave the same.
+- MCP uses revocable bearer tokens (`api_tokens`, SHA-256 hashed). Keep destructive tools out of MCP.
 - `packages/core/src/schemas.ts` holds input schemas and API types. It must stay browser-safe (no Node/db imports); the web app imports it via `@projectbench/core/schemas`.
 - Every write runs in a transaction that also updates the FTS `search` table and the `activity` log (`actor: 'app' | 'mcp'`).
 - Manual ordering uses fractional-index `sort_key` strings (`keyAt()` in `services/context.ts`); moves take a `position` index among siblings.
@@ -42,6 +44,6 @@ Run `pnpm test` and `pnpm typecheck` before committing; the pre-commit hook runs
 - Keep `better-sqlite3` on 12.x: 13.x ships no prebuilt binaries and needs Xcode Command Line Tools to install.
 - UI: Inter + Space Grotesk, accent `#2F5BEA`, tokens in `apps/web/src/index.css`. Touch targets ≥ 44 px; real buttons and labels.
 
-## Next: phase 3 — MCP server
+## Next: phase 4 — notes and attachments
 
-Streamable HTTP at `/mcp` in the server process with revocable bearer tokens (hashed, managed in app settings), plus a stdio wrapper in `apps/mcp-stdio` that talks to the HTTP API. Task-shaped tools from the plan: `list_projects`, `get_project` (Markdown), `create_project`, `update_project`, `add_items` (with `links[]`), `update_item` (state, order ref, expected date), `set_item_links`, `add_note`, `search`, `agenda`, `shopping_list` (state filter), `open_questions`. Accept project titles as well as ids, with fuzzy matching; no destructive tools.
+Notes timeline in the app, multipart upload, sharp thumbnails and HEIC conversion, Files tab, camera button, and the `get_attachment` and `add_attachment` MCP tools.
