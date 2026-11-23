@@ -10,7 +10,7 @@ A small self-hosted app for personal projects: checklists for things to buy and 
 
 | Part | Choice |
 | --- | --- |
-| Server | Node 22, [Hono](https://hono.dev), TypeScript |
+| Server | Node 26, [Hono](https://hono.dev), TypeScript |
 | Database | SQLite (WAL) via better-sqlite3 and [Drizzle ORM](https://orm.drizzle.team) |
 | Web app | React, Vite, TanStack Query, Tailwind CSS, vite-plugin-pwa |
 | Tests | Vitest |
@@ -23,7 +23,7 @@ apps/web        React PWA
 
 ## Development
 
-Requirements: Node 22 or newer (24 recommended) and pnpm. pnpm switches to the version pinned in `package.json` on its own.
+Requirements: Node 22 or newer (26 recommended) and pnpm. pnpm switches to the version pinned in `package.json` on its own.
 
 ```sh
 pnpm install
