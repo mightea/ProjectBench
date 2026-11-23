@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026.11.2](https://github.com/mightea/ProjectBench/compare/2026.11.1...2026.11.2) (2026-11-23)
+
+
+### ✨ Features
+
+* add MCP server with token management ([#5](https://github.com/mightea/ProjectBench/issues/5)) ([e6a921a](https://github.com/mightea/ProjectBench/commit/e6a921ab572da98e334f2934ca5075b8d352a6ae))
+
 ## [2026.11.1](https://github.com/mightea/ProjectBench/compare/2026.11.0...2026.11.1) (2026-11-23)
 
 
