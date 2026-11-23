@@ -222,17 +222,19 @@ describe('App', () => {
     expect(within(list).getByRole('button', { name: 'Mark as received: JST-XH kit' })).toBeTruthy();
   });
 
-  it('edits due date and tags from the project panel', async () => {
+  it('edits due date and tags from the edit project sheet', async () => {
     renderApp(signedIn, { '/api/projects/p1': project, '/api/tags': [{ name: 'homelab', projects: 1 }] }, '/projects/p1');
-    const panel = await screen.findByRole('complementary', { name: 'Project details' });
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit project' }));
+    const sheet = await screen.findByRole('dialog', { name: 'Edit project' });
     const patches = () =>
       vi.mocked(fetch).mock.calls.filter(([, init]) => init?.method === 'PATCH').map(([, init]) => JSON.parse(String(init!.body)));
-    fireEvent.change(within(panel).getByLabelText('Due date'), { target: { value: '2027-03-01' } });
-    await waitFor(() => expect(patches()).toContainEqual({ dueDate: '2027-03-01' }));
-    const tags = within(panel).getByLabelText('Tags');
+    fireEvent.change(within(sheet).getByLabelText('Due date'), { target: { value: '2027-03-01' } });
+    const tags = within(sheet).getByLabelText(/^Tags/);
     fireEvent.change(tags, { target: { value: 'Rack Parts' } });
     fireEvent.keyDown(tags, { key: 'Enter' });
-    await waitFor(() => expect(patches()).toContainEqual({ tags: ['homelab', 'rack-parts'] }));
+    expect(patches()).toEqual([]);
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(patches()).toContainEqual(expect.objectContaining({ dueDate: '2027-03-01', tags: ['homelab', 'rack-parts'] })));
   });
 
   it('filters projects by the tag in the URL', async () => {

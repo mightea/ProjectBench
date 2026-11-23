@@ -15,7 +15,7 @@ import { FilesTab } from './FilesTab.tsx';
 import { ItemSheet } from './ItemSheet.tsx';
 import { LookSheet } from './LookSheet.tsx';
 import { NotesTab } from './NotesTab.tsx';
-import { DetailsSheet, ProjectProperties } from './ProjectDetails.tsx';
+import { DetailsSheet } from './ProjectDetails.tsx';
 import { LatestNote, OverviewTiles, UpNext } from './ProjectOverview.tsx';
 
 /** Tags shown in the header before "+n". */
@@ -102,6 +102,9 @@ function ProjectView({ project: p, navigate, backLink }: { project: ProjectDetai
 
   const item = panel?.type === 'item' ? p.checklists.flatMap((c) => c.items).find((i) => i.id === panel.id) : undefined;
   const editing = panel?.type === 'checklist' ? p.checklists.find((c) => c.id === panel.id) : undefined;
+  // Matches what UpNext and LatestNote render, so an empty side column never takes up space.
+  const hasOpenStep = p.checklists.some((c) => c.kind === 'todo' && c.items.some((i) => i.state === 'open' && !i.id.startsWith('pending-')));
+  const hasHighlights = hasOpenStep || Boolean(notes.data?.length);
 
   return (
     <div className="w-full flex-1" style={lookStyle(projectColor(p))}>
@@ -167,8 +170,7 @@ function ProjectView({ project: p, navigate, backLink }: { project: ProjectDetai
             </button>
           )}
 
-          {/* On desktop the tags are in the panel beside the project. */}
-          <div className="flex flex-wrap items-center gap-1.5 lg:hidden">
+          <div className="flex flex-wrap items-center gap-1.5">
             {p.tags.slice(0, HERO_TAGS).map((t) => (
               <a
                 key={t}
@@ -202,17 +204,20 @@ function ProjectView({ project: p, navigate, backLink }: { project: ProjectDetai
         </div>
       </header>
 
-      {/* Details: beside the content at lg and 2xl, as a row of three above it at xl. */}
+      {/* Highlights: beside the content at lg and 2xl, as a row above it at xl. */}
       <div
-        className={`mx-auto flex w-full flex-col gap-3.5 px-4 pt-3.5 pb-10 md:px-8 md:pt-6 lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-x-6 lg:gap-y-4 xl:grid-cols-[minmax(0,1fr)] 2xl:grid-cols-[minmax(0,1fr)_22.5rem] ${CONTENT_WIDTH}`}
+        className={`mx-auto flex w-full flex-col gap-3.5 px-4 pt-3.5 pb-10 md:px-8 md:pt-6 ${
+          hasHighlights ? 'lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-x-6 lg:gap-y-4 xl:grid-cols-[minmax(0,1fr)] 2xl:grid-cols-[minmax(0,1fr)_22.5rem]' : ''
+        } ${CONTENT_WIDTH}`}
       >
         <OverviewTiles project={p} onJump={jumpTo} />
 
-        <div className="flex min-w-0 flex-col gap-3.5 lg:col-start-2 lg:row-span-2 lg:row-start-1 xl:col-start-1 xl:row-span-1 xl:grid xl:grid-cols-3 xl:items-start 2xl:col-start-2 2xl:row-span-2 2xl:flex 2xl:items-stretch">
-          <UpNext project={p} onDone={(itemId) => m.updateItem.mutate({ id: itemId, state: 'done' })} />
-          <LatestNote notes={notes.data} onAll={() => setTab('notes')} />
-          <ProjectProperties project={p} onChange={(patch) => m.updateProject.mutate(patch)} />
-        </div>
+        {hasHighlights && (
+          <div className="flex min-w-0 flex-col gap-3.5 lg:col-start-2 lg:row-span-2 lg:row-start-1 xl:col-start-1 xl:row-span-1 xl:grid xl:auto-cols-fr xl:grid-flow-col xl:items-start 2xl:col-start-2 2xl:row-span-2 2xl:flex 2xl:items-stretch">
+            <UpNext project={p} onDone={(itemId) => m.updateItem.mutate({ id: itemId, state: 'done' })} />
+            <LatestNote notes={notes.data} onAll={() => setTab('notes')} />
+          </div>
+        )}
 
         <div className="flex min-w-0 flex-col gap-3.5 lg:col-start-1 xl:row-start-3 2xl:row-start-2">
           <div role="tablist" aria-label="Project sections" className="flex rounded-[10px] bg-line p-[3px] md:gap-1 md:rounded-none md:border-b md:border-line md:bg-transparent md:p-0">

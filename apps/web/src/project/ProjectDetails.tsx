@@ -19,32 +19,7 @@ const PriorityOptions = () =>
     </option>
   ));
 
-/** Always-visible fields beside the project on desktop. Each change saves right away. */
-export function ProjectProperties({ project: p, onChange }: { project: ProjectDetail; onChange: (patch: ProjectUpdate) => void }) {
-  const ids = { status: useId(), priority: useId(), due: useId(), tags: useId() };
-  return (
-    <aside aria-label="Project details" className="hidden flex-col gap-4 rounded-2xl border border-line bg-surface p-4 lg:flex">
-      <Field label="Status" htmlFor={ids.status}>
-        <select id={ids.status} value={p.status} onChange={(e) => onChange({ status: e.target.value as ProjectStatus })} className={inputClass}>
-          <StatusOptions />
-        </select>
-      </Field>
-      <Field label="Priority" htmlFor={ids.priority}>
-        <select id={ids.priority} value={p.priority} onChange={(e) => onChange({ priority: Number(e.target.value) })} className={inputClass}>
-          <PriorityOptions />
-        </select>
-      </Field>
-      <Field label="Due date" htmlFor={ids.due}>
-        <DateField id={ids.due} value={p.dueDate} onCommit={(dueDate) => onChange({ dueDate })} />
-      </Field>
-      <Field label="Tags" htmlFor={ids.tags}>
-        <TagInput id={ids.tags} value={p.tags} onChange={(tags) => onChange({ tags })} />
-      </Field>
-    </aside>
-  );
-}
-
-/** Every project field in one form; the way to edit on phones and to change title or description. */
+/** Every project field in one form. */
 export function DetailsSheet({ project, onSave, onClose }: { project: ProjectDetail; onSave: (patch: ProjectUpdate) => void; onClose: () => void }) {
   const [title, setTitle] = useState(project.title);
   const [description, setDescription] = useState(project.description ?? '');
