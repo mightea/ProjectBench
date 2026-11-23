@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026.11.7](https://github.com/mightea/ProjectBench/compare/2026.11.6...2026.11.7) (2026-11-23)
+
+
+### ✨ Features
+
+* redesign buy flow and add wide desktop layouts ([#16](https://github.com/mightea/ProjectBench/issues/16)) ([519bda0](https://github.com/mightea/ProjectBench/commit/519bda050d340255cf92fcc0c3207f6db6a911e1))
+
 ## [2026.11.6](https://github.com/mightea/ProjectBench/compare/2026.11.5...2026.11.6) (2026-11-23)
 
 
