@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@hono/node-server": "^2.1.11",
+    "@modelcontextprotocol/sdk": "1.32.2",
     "@projectbench/core": "workspace:*",
     "better-sqlite3": "~12.11.1",
     "drizzle-orm": "^0.45.4",

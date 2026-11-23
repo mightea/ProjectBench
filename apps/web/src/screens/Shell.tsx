@@ -1,11 +1,12 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, type ComponentType, type MouseEvent, type SVGProps } from 'react';
 import { api } from '../api.ts';
-import { CalendarIcon, CartIcon, GridIcon, LogoutIcon, SearchIcon } from '../components/icons.tsx';
+import { CalendarIcon, CartIcon, GridIcon, LogoutIcon, SearchIcon, SettingsIcon } from '../components/icons.tsx';
 import { Logo } from '../components/Logo.tsx';
 import { ProjectScreen } from '../project/ProjectScreen.tsx';
 import { useRoute } from '../useRoute.ts';
 import { ProjectsScreen } from './ProjectsScreen.tsx';
+import { SettingsScreen } from './SettingsScreen.tsx';
 
 interface Tab {
   path: string;
@@ -33,7 +34,8 @@ export function Shell() {
   }, [path]);
 
   const projectMatch = path.match(/^\/projects\/([^/]+)$/);
-  const active = TABS.find((t) => path.startsWith(t.path)) ?? TABS[1]!;
+  const inSettings = path.startsWith('/settings');
+  const active = inSettings ? undefined : (TABS.find((t) => path.startsWith(t.path)) ?? TABS[1]!);
 
   const logout = useMutation({
     mutationFn: () => api.post('/api/auth/logout'),
@@ -49,6 +51,7 @@ export function Shell() {
 
   let content;
   if (projectMatch) content = <ProjectScreen key={projectMatch[1]} id={decodeURIComponent(projectMatch[1]!)} navigate={navigate} />;
+  else if (!active) content = <SettingsScreen onLogout={() => logout.mutate()} />;
   else if (active.path === '/projects') content = <ProjectsScreen navigate={navigate} />;
   else content = <Placeholder tab={active} onLogout={() => logout.mutate()} />;
 
@@ -79,10 +82,21 @@ export function Shell() {
             );
           })}
         </nav>
+        <a
+          href="/settings"
+          onClick={go('/settings')}
+          aria-current={inSettings ? 'page' : undefined}
+          className={`mt-auto -mb-5 flex h-10 items-center gap-2.5 rounded-lg px-2.5 text-sm ${
+            inSettings ? 'bg-accent-soft font-semibold text-[#2448C2]' : 'font-medium text-muted hover:bg-ground'
+          }`}
+        >
+          <SettingsIcon width={18} height={18} />
+          Settings
+        </a>
         <button
           type="button"
           onClick={() => logout.mutate()}
-          className="mt-auto flex h-10 items-center gap-2.5 rounded-lg px-2.5 text-sm font-medium text-muted hover:bg-ground"
+          className="flex h-10 items-center gap-2.5 rounded-lg px-2.5 text-sm font-medium text-muted hover:bg-ground"
         >
           <LogoutIcon width={18} height={18} />
           Sign out

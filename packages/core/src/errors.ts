@@ -11,3 +11,16 @@ export class InvalidOperationError extends Error {
     this.name = 'InvalidOperationError';
   }
 }
+
+/** A name matched several records; the caller should pick one of the candidates. */
+export class AmbiguousMatchError extends Error {
+  constructor(
+    entity: string,
+    ref: string,
+    public readonly candidates: { id: string; title: string }[],
+  ) {
+    const list = candidates.map((c) => `- ${c.title} (id: ${c.id})`).join('\n');
+    super(`"${ref}" matches several ${entity}s. Use one of these ids:\n${list}`);
+    this.name = 'AmbiguousMatchError';
+  }
+}

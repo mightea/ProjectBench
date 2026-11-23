@@ -9,7 +9,7 @@
   },
   "scripts": {
     "dev": "pnpm --parallel --filter @projectbench/server --filter @projectbench/web dev",
-    "build": "pnpm --filter @projectbench/web build && pnpm --filter @projectbench/server build",
+    "build": "pnpm --filter @projectbench/web build && pnpm --filter @projectbench/server build && pnpm --filter @projectbench/mcp-stdio build",
     "start": "pnpm --filter @projectbench/server start",
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck",

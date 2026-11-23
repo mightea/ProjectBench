@@ -1,7 +1,7 @@
 import type { ProjectSummary } from '@projectbench/core/schemas';
 import { useState, type MouseEvent } from 'react';
 import { PriorityBadge, ProgressBar } from '../components/bits.tsx';
-import { PlusIcon, SearchIcon } from '../components/icons.tsx';
+import { PlusIcon, SearchIcon, SettingsIcon } from '../components/icons.tsx';
 import { dueTone, dueToneClass, formatDue, STATUS_META } from '../lib/format.ts';
 import { useProjects } from '../lib/queries.ts';
 import { NewProjectSheet } from './NewProjectSheet.tsx';
@@ -40,6 +40,18 @@ export function ProjectsScreen({ navigate }: { navigate: (to: string) => void })
         <div className="flex items-center justify-between gap-3">
           <h1 className="font-display text-[32px] font-semibold tracking-tight">Projects</h1>
           <div className="flex items-center gap-2">
+            <a
+              href="/settings"
+              aria-label="Settings"
+              onClick={(e) => {
+                if (e.metaKey || e.ctrlKey || e.shiftKey) return;
+                e.preventDefault();
+                navigate('/settings');
+              }}
+              className="flex size-11 items-center justify-center rounded-full border border-line bg-surface md:hidden"
+            >
+              <SettingsIcon width={20} height={20} />
+            </a>
             <label className="sr-only" htmlFor="sort">
               Sort by
             </label>

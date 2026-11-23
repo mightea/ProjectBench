@@ -115,6 +115,56 @@ export type ChecklistCreate = z.input<typeof checklistCreateSchema>;
 export type ChecklistUpdate = z.input<typeof checklistUpdateSchema>;
 export type ProjectListQuery = z.input<typeof projectListQuerySchema>;
 
+export const noteCreateSchema = z.object({
+  body: trimmed(20_000),
+  pinned: z.boolean().optional(),
+});
+
+export const apiTokenCreateSchema = z.object({
+  name: trimmed(80),
+});
+
+export const itemLinksSetSchema = z
+  .object({
+    /** Replaces all links of the item. Cannot be combined with add or remove. */
+    replace: z.array(linkCreateSchema).max(20).optional(),
+    add: z.array(linkCreateSchema).max(20).optional(),
+    remove: z.array(z.string().min(1)).max(50).optional(),
+  })
+  .refine((v) => v.replace !== undefined || v.add !== undefined || v.remove !== undefined, {
+    message: 'Provide replace, add or remove',
+  })
+  .refine((v) => v.replace === undefined || (v.add === undefined && v.remove === undefined), {
+    message: 'replace cannot be combined with add or remove',
+  });
+
+export type NoteCreate = z.input<typeof noteCreateSchema>;
+export type ApiTokenCreate = z.input<typeof apiTokenCreateSchema>;
+export type ItemLinksSet = z.input<typeof itemLinksSetSchema>;
+
+export interface ApiToken {
+  id: string;
+  name: string;
+  prefix: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+  revokedAt: string | null;
+}
+
+/** Returned once, when the token is created. */
+export interface ApiTokenCreated extends ApiToken {
+  token: string;
+}
+
+export interface Note {
+  id: string;
+  projectId: string;
+  body: string;
+  pinned: boolean;
+  source: 'app' | 'mcp';
+  createdAt: string;
+}
+
 // ---- API response shapes -------------------------------------------------------
 
 export interface Progress {
