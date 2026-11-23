@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026.11.4](https://github.com/mightea/ProjectBench/compare/2026.11.3...2026.11.4) (2026-11-23)
+
+
+### ✨ Features
+
+* add dark mode, project editing and tag filters ([#10](https://github.com/mightea/ProjectBench/issues/10)) ([16523cd](https://github.com/mightea/ProjectBench/commit/16523cde5fbf5c2bb4f9d82920717f57be76f5af))
+
 ## [2026.11.3](https://github.com/mightea/ProjectBench/compare/2026.11.2...2026.11.3) (2026-11-23)
 
 
