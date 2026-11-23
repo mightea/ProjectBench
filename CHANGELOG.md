@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026.11.5](https://github.com/mightea/ProjectBench/compare/2026.11.4...2026.11.5) (2026-11-23)
+
+
+### ✨ Features
+
+* add project identity and redesign core screens ([#12](https://github.com/mightea/ProjectBench/issues/12)) ([7e2acc6](https://github.com/mightea/ProjectBench/commit/7e2acc697bdabefdbfa55097e06cb1e22e068a90))
+
 ## [2026.11.4](https://github.com/mightea/ProjectBench/compare/2026.11.3...2026.11.4) (2026-11-23)
 
 
