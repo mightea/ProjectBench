@@ -31,7 +31,7 @@ export function StateMark({ state }: { state: ItemState }) {
       </span>
     );
   }
-  return <span className="size-[22px] rounded-full border-2 border-[#A7ACB8]" />;
+  return <span className="size-[22px] rounded-full border-2 border-control" />;
 }
 
 export function LinkChips({ links }: { links: ItemLink[] }) {
@@ -102,8 +102,8 @@ export function ItemRow({ item, kind, onToggle, onOpen }: Props) {
 
       <div className="flex min-w-0 flex-1 flex-col gap-1.5 py-[11px]">
         <button type="button" onClick={onOpen} disabled={pending} className="flex items-baseline gap-2 text-left">
-          <span className={`flex-1 text-[15px] leading-snug font-medium ${done ? 'text-[#6B7180] line-through' : ''}`}>{item.text}</span>
-          {qty && <span className={`text-[13px] font-semibold ${done ? 'text-[#6B7180]' : ''}`}>{qty}</span>}
+          <span className={`flex-1 text-[15px] leading-snug font-medium ${done ? 'text-faint line-through' : ''}`}>{item.text}</span>
+          {qty && <span className={`text-[13px] font-semibold ${done ? 'text-faint' : ''}`}>{qty}</span>}
           {item.dueDate && !done && (
             <span className={`text-xs font-semibold whitespace-nowrap ${dueToneClass[dueTone(item.dueDate)]}`}>{formatDue(item.dueDate)}</span>
           )}
@@ -111,7 +111,7 @@ export function ItemRow({ item, kind, onToggle, onOpen }: Props) {
         {meta.map((m) => (
           <span
             key={m}
-            className={item.state === 'ordered' ? 'self-start rounded-md bg-warning-soft px-2 py-0.5 text-xs font-semibold text-[#8A4B06]' : 'text-xs text-muted'}
+            className={item.state === 'ordered' ? 'self-start rounded-md bg-warning-soft px-2 py-0.5 text-xs font-semibold text-warning-ink' : 'text-xs text-muted'}
           >
             {m}
           </span>
@@ -131,7 +131,7 @@ export function ItemRow({ item, kind, onToggle, onOpen }: Props) {
         {...attributes}
         {...listeners}
         aria-label={`Reorder ${item.text}`}
-        className="flex size-11 shrink-0 cursor-grab touch-none items-center justify-center text-[#A7ACB8] hover:text-muted active:cursor-grabbing"
+        className="flex size-11 shrink-0 cursor-grab touch-none items-center justify-center text-control hover:text-muted active:cursor-grabbing"
       >
         <GripIcon width={18} height={18} />
       </button>

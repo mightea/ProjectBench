@@ -262,11 +262,16 @@ export interface ItemWithContext extends ChecklistItem {
   checklistKind: ChecklistKind;
 }
 
+/** Tags are stored lower-case, without a leading #, with dashes for spaces. */
+export const normalizeTag = (name: string) => name.trim().toLowerCase().replace(/^#/, '').replace(/\s+/g, '-');
+
 export interface SearchHit {
   entity: 'project' | 'item' | 'note';
   entityId: string;
   projectId: string;
   projectTitle: string;
+  /** The tags of the hit's project. */
+  tags: string[];
   title: string;
   snippet: string;
 }

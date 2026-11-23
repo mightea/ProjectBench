@@ -3,8 +3,10 @@ import { useState, type MouseEvent } from 'react';
 import { PriorityBadge, ProgressBar } from '../components/bits.tsx';
 import { PlusIcon, SearchIcon, SettingsIcon } from '../components/icons.tsx';
 import { QueryFallback } from '../components/QueryFallback.tsx';
+import { TagFilter } from '../components/TagFilter.tsx';
 import { dueTone, dueToneClass, formatDue, STATUS_META } from '../lib/format.ts';
 import { useProjects } from '../lib/queries.ts';
+import { useTagFilter } from '../useRoute.ts';
 import { NewProjectSheet } from './NewProjectSheet.tsx';
 
 const FILTERS = [
@@ -27,7 +29,9 @@ export function ProjectsScreen({ navigate }: { navigate: (to: string) => void })
   const [sort, setSort] = useState('priority');
   const [q, setQ] = useState('');
   const [creating, setCreating] = useState(false);
-  const projects = useProjects({ status, sort, q: q.trim() || undefined });
+  const [tag, setTag] = useTagFilter();
+  const projects = useProjects({ status, sort, q: q.trim() || undefined, tag: tag ?? undefined });
+  const filtered = Boolean(q || tag || status !== 'open');
 
   const open = (id: string) => (e: MouseEvent<HTMLAnchorElement>) => {
     if (e.metaKey || e.ctrlKey || e.shiftKey) return;
@@ -97,7 +101,7 @@ export function ProjectsScreen({ navigate }: { navigate: (to: string) => void })
               aria-pressed={status === f.value}
               onClick={() => setStatus(f.value)}
               className={`h-9 shrink-0 rounded-full px-3.5 text-[13px] whitespace-nowrap ${
-                status === f.value ? 'bg-ink font-semibold text-white' : 'border border-line bg-surface font-medium'
+                status === f.value ? 'bg-ink font-semibold text-surface' : 'border border-line bg-surface font-medium'
               }`}
             >
               {f.label}
@@ -105,6 +109,7 @@ export function ProjectsScreen({ navigate }: { navigate: (to: string) => void })
             </button>
           ))}
         </div>
+        <TagFilter value={tag} onChange={setTag} />
       </header>
 
       <main className="flex-1 px-4 pb-32 md:px-8 md:pb-10">
@@ -112,9 +117,9 @@ export function ProjectsScreen({ navigate }: { navigate: (to: string) => void })
           <QueryFallback query={projects} />
         ) : projects.data.length === 0 ? (
           <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-line bg-surface px-6 py-12 text-center">
-            <p className="font-semibold">{q || status !== 'open' ? 'No matching projects' : 'No projects yet'}</p>
+            <p className="font-semibold">{filtered ? 'No matching projects' : 'No projects yet'}</p>
             <p className="max-w-sm text-sm text-muted">
-              {q || status !== 'open' ? 'Try another filter.' : 'Start with the project that’s on your bench right now.'}
+              {filtered ? 'Try another filter.' : 'Start with the project that’s on your bench right now.'}
             </p>
             <button
               type="button"
@@ -164,7 +169,7 @@ function ProjectCard({ project: p, href, onClick }: { project: ProjectSummary; h
     <a
       href={href}
       onClick={onClick}
-      className="flex h-full flex-col gap-2.5 rounded-2xl border border-line bg-surface p-3.5 hover:border-[#C9CDD6]"
+      className="flex h-full flex-col gap-2.5 rounded-2xl border border-line bg-surface p-3.5 hover:border-line-strong"
     >
       <div className="flex items-center gap-2">
         <PriorityBadge priority={p.priority} />

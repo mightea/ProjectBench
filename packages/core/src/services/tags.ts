@@ -1,9 +1,10 @@
 import { asc, eq, inArray } from 'drizzle-orm';
 import { newId } from '../ids.ts';
 import { projectTags, tags } from '../schema.ts';
+import { normalizeTag } from '../schemas.ts';
 import type { DbLike } from './context.ts';
 
-export const normalizeTag = (name: string) => name.trim().toLowerCase().replace(/^#/, '').replace(/\s+/g, '-');
+export { normalizeTag };
 
 /** Replaces a project's tags, creating tags that do not exist yet. */
 export function setProjectTags(tx: DbLike, projectId: string, names: string[]) {
@@ -40,6 +41,7 @@ export function tagsForProjects(tx: DbLike, projectIds: string[]): Map<string, s
   return result;
 }
 
+/** Tags in use, with how many projects carry them. */
 export function listTags(tx: DbLike): { name: string; projects: number }[] {
   const rows = tx
     .select({ name: tags.name, projectId: projectTags.projectId })
@@ -49,5 +51,5 @@ export function listTags(tx: DbLike): { name: string; projects: number }[] {
     .all();
   const counts = new Map<string, number>();
   for (const r of rows) counts.set(r.name, (counts.get(r.name) ?? 0) + (r.projectId ? 1 : 0));
-  return [...counts].map(([name, projects]) => ({ name, projects }));
+  return [...counts].filter(([, projects]) => projects > 0).map(([name, projects]) => ({ name, projects }));
 }

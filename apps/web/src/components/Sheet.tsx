@@ -34,7 +34,7 @@ export function Sheet({ title, onClose, children, footer }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center md:items-center md:p-6">
-      <div className="absolute inset-0 bg-ink/45" onClick={onClose} aria-hidden="true" />
+      <div className="absolute inset-0 bg-scrim" onClick={onClose} aria-hidden="true" />
       <div
         ref={panel}
         role="dialog"
@@ -66,7 +66,7 @@ export function Sheet({ title, onClose, children, footer }: Props) {
 export function Field({ label, htmlFor, children, hint }: { label: string; htmlFor: string; children: ReactNode; hint?: string }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={htmlFor} className="text-[13px] font-semibold text-[#3F4450]">
+      <label htmlFor={htmlFor} className="text-[13px] font-semibold text-ink-soft">
         {label}
       </label>
       {children}

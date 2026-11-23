@@ -45,7 +45,7 @@ export function ChecklistSheet({ checklist, index = 0, count = 0, onSave, onMove
     >
       <form id="checklist-form" onSubmit={submit} className="flex flex-col gap-4">
         <fieldset>
-          <legend className="mb-1.5 text-[13px] font-semibold text-[#3F4450]">Kind</legend>
+          <legend className="mb-1.5 text-[13px] font-semibold text-ink-soft">Kind</legend>
           <div className="grid grid-cols-3 gap-2">
             {CHECKLIST_KINDS.map((k) => (
               <button
@@ -53,7 +53,7 @@ export function ChecklistSheet({ checklist, index = 0, count = 0, onSave, onMove
                 type="button"
                 aria-pressed={kind === k}
                 onClick={() => pickKind(k)}
-                className={`h-11 rounded-xl text-sm ${kind === k ? 'border-2 border-accent bg-accent-soft font-semibold text-[#2448C2]' : 'border border-line font-medium'}`}
+                className={`h-11 rounded-xl text-sm ${kind === k ? 'border-2 border-accent bg-accent-soft font-semibold text-accent-ink' : 'border border-line font-medium'}`}
               >
                 {KIND_META[k].label}
               </button>
@@ -82,7 +82,7 @@ export function ChecklistSheet({ checklist, index = 0, count = 0, onSave, onMove
           )}
           {onDelete &&
             (confirm ? (
-              <button type="button" onClick={() => (onDelete(), onClose())} className="h-11 rounded-xl bg-danger text-sm font-semibold text-white">
+              <button type="button" onClick={() => (onDelete(), onClose())} className="h-11 rounded-xl bg-danger-fill text-sm font-semibold text-white">
                 Delete “{checklist.title}” and its {checklist.items.length} items
               </button>
             ) : (

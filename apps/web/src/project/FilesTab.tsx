@@ -79,7 +79,7 @@ export function FilesTab({ projectId }: { projectId: string }) {
                 m.deleteAttachment.mutate(deleting.id);
                 setDeleting(null);
               }}
-              className="h-12 rounded-xl bg-danger text-[15px] font-semibold text-white"
+              className="h-12 rounded-xl bg-danger-fill text-[15px] font-semibold text-white"
             >
               Delete file
             </button>

@@ -49,12 +49,14 @@ export function useTags() {
   return useQuery({ queryKey: ['tags'], queryFn: () => api.get<{ name: string; projects: number }[]>('/api/tags') });
 }
 
-export function useAgenda() {
-  return useQuery({ queryKey: ['agenda'], queryFn: () => api.get<Agenda>('/api/agenda') });
+const tagQuery = (tag?: string | null) => (tag ? `?tag=${encodeURIComponent(tag)}` : '');
+
+export function useAgenda(tag?: string | null) {
+  return useQuery({ queryKey: tag ? ['agenda', tag] : ['agenda'], queryFn: () => api.get<Agenda>(`/api/agenda${tagQuery(tag)}`) });
 }
 
-export function useBuyOverview() {
-  return useQuery({ queryKey: ['buy'], queryFn: () => api.get<BuyOverview>('/api/buy') });
+export function useBuyOverview(tag?: string | null) {
+  return useQuery({ queryKey: tag ? ['buy', tag] : ['buy'], queryFn: () => api.get<BuyOverview>(`/api/buy${tagQuery(tag)}`) });
 }
 
 export function useSearch(query: string) {
@@ -68,7 +70,7 @@ export function useSearch(query: string) {
 
 function refresh(qc: QueryClient, projectId: string) {
   return Promise.all(
-    [projectKey(projectId), ['projects'], ['agenda'], ['buy'], ['search']].map((queryKey) => qc.invalidateQueries({ queryKey })),
+    [projectKey(projectId), ['projects'], ['tags'], ['agenda'], ['buy'], ['search']].map((queryKey) => qc.invalidateQueries({ queryKey })),
   );
 }
 

@@ -96,7 +96,7 @@ export function ItemSheet({ projectId, item, checklists, mutations, onClose }: P
                 mutations.deleteItem.mutate(item.id);
                 onClose();
               }}
-              className="h-12 flex-1 rounded-xl bg-danger font-semibold text-white"
+              className="h-12 flex-1 rounded-xl bg-danger-fill font-semibold text-white"
             >
               Delete item
             </button>
@@ -124,7 +124,7 @@ export function ItemSheet({ projectId, item, checklists, mutations, onClose }: P
         </Field>
 
         <fieldset>
-          <legend className="mb-1.5 text-[13px] font-semibold text-[#3F4450]">State</legend>
+          <legend className="mb-1.5 text-[13px] font-semibold text-ink-soft">State</legend>
           <div className="flex rounded-xl bg-line-soft p-[3px]" role="radiogroup">
             {states.map((s) => (
               <button
@@ -133,7 +133,7 @@ export function ItemSheet({ projectId, item, checklists, mutations, onClose }: P
                 role="radio"
                 aria-checked={state === s.value}
                 onClick={() => setState(s.value)}
-                className={`h-10 flex-1 rounded-lg text-sm ${state === s.value ? 'bg-surface font-semibold shadow-sm' : 'font-medium text-[#3F4450]'}`}
+                className={`h-10 flex-1 rounded-lg text-sm ${state === s.value ? 'bg-surface font-semibold shadow-sm' : 'font-medium text-ink-soft'}`}
               >
                 {s.label}
               </button>
@@ -187,7 +187,7 @@ export function ItemSheet({ projectId, item, checklists, mutations, onClose }: P
 
       {kind === 'buy' && (
         <section className="mt-6 flex flex-col gap-2" aria-labelledby={`${item.id}-links`}>
-          <h3 id={`${item.id}-links`} className="text-[13px] font-semibold text-[#3F4450]">
+          <h3 id={`${item.id}-links`} className="text-[13px] font-semibold text-ink-soft">
             Where to buy
           </h3>
           {item.links.length === 0 && <p className="text-sm text-muted">No shop links yet.</p>}
@@ -203,14 +203,14 @@ export function ItemSheet({ projectId, item, checklists, mutations, onClose }: P
                     {l.price !== null && <span className="font-normal text-muted">{formatPrice(l.price, l.currency)}</span>}
                     <ExternalIcon width={11} height={11} className="text-muted" />
                   </span>
-                  <span className="truncate text-xs text-[#3F4450]">{l.url.replace(/^https?:\/\//, '')}</span>
+                  <span className="truncate text-xs text-ink-soft">{l.url.replace(/^https?:\/\//, '')}</span>
                 </a>
                 <button
                   type="button"
                   onClick={() => mutations.updateLink.mutate({ id: l.id, preferred: true })}
                   aria-label={l.preferred ? `${l.shop ?? 'Link'} is the preferred shop` : `Prefer ${l.shop ?? 'this link'}`}
                   aria-pressed={l.preferred}
-                  className={`flex size-10 items-center justify-center rounded-lg ${l.preferred ? 'text-accent' : 'text-[#A7ACB8] hover:text-muted'}`}
+                  className={`flex size-10 items-center justify-center rounded-lg ${l.preferred ? 'text-accent-ink' : 'text-control hover:text-muted'}`}
                 >
                   <StarIcon filled={l.preferred} width={18} height={18} />
                 </button>
@@ -218,7 +218,7 @@ export function ItemSheet({ projectId, item, checklists, mutations, onClose }: P
                   type="button"
                   onClick={() => mutations.deleteLink.mutate(l.id)}
                   aria-label={`Remove link to ${l.shop ?? l.url}`}
-                  className="flex size-10 items-center justify-center rounded-lg text-[#A7ACB8] hover:text-danger"
+                  className="flex size-10 items-center justify-center rounded-lg text-control hover:text-danger"
                 >
                   <TrashIcon width={18} height={18} />
                 </button>
@@ -269,7 +269,7 @@ function ItemFiles({ projectId, itemId }: { projectId: string; itemId: string })
   const attached = files.data?.filter((a) => a.itemId === itemId) ?? [];
   return (
     <section className="mt-6 flex flex-col gap-2" aria-labelledby={`${itemId}-files`}>
-      <h3 id={`${itemId}-files`} className="text-[13px] font-semibold text-[#3F4450]">
+      <h3 id={`${itemId}-files`} className="text-[13px] font-semibold text-ink-soft">
         Photos and files
       </h3>
       <AttachmentList attachments={attached} />

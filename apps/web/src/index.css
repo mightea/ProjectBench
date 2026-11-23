@@ -21,11 +21,71 @@
   --color-warning-soft: #fdf0dc;
   --color-success: #1f7a4d;
   --color-success-soft: #e3f4ec;
+
+  --color-ink-soft: #3f4450;
+  --color-faint: #6b7180;
+  --color-control: #a7acb8;
+  --color-line-strong: #c9cdd6;
+  --color-accent-ink: #2448c2;
+  --color-warning-ink: #8a4b06;
+  --color-danger-ink: #8e1c13;
+  --color-danger-fill: #b42318;
+  --color-ordered: #e0a458;
+  --color-claude: #6b35a8;
+  --color-claude-soft: #f1e8fb;
+  --color-status-idea: #8b5cf6;
+  --color-scrim: rgb(21 23 28 / 0.45);
+}
+
+/* data-theme is set before first paint by index.html, then kept current by lib/theme.ts. */
+:root[data-theme='dark'] {
+  --color-ground: #0f1115;
+  --color-surface: #181b22;
+  --color-line: #2c313b;
+  --color-line-soft: #23272f;
+  --color-ink: #eceef2;
+  --color-muted: #a3a9b6;
+  --color-accent-strong: #4a73f5;
+  --color-accent-soft: #1c2a55;
+  --color-danger: #ff9085;
+  --color-danger-soft: #3a1b19;
+  --color-warning: #f0b35a;
+  --color-warning-soft: #38280f;
+  --color-success: #5fd39b;
+  --color-success-soft: #12301f;
+  --color-ink-soft: #c8ccd5;
+  --color-faint: #959baa;
+  --color-control: #737989;
+  --color-line-strong: #464c59;
+  --color-accent-ink: #b3c6ff;
+  --color-warning-ink: #f5c67e;
+  --color-danger-ink: #ffb4ab;
+  --color-claude: #d3b8f7;
+  --color-claude-soft: #2c2140;
+  --color-status-idea: #a78bfa;
+  --color-scrim: rgb(0 0 0 / 0.62);
 }
 
 html {
   color-scheme: light;
   -webkit-tap-highlight-color: transparent;
+}
+
+html[data-theme='dark'] {
+  color-scheme: dark;
+}
+
+button:not(:disabled),
+select:not(:disabled) {
+  cursor: pointer;
+}
+
+/* In the base layer, so fields with their own focus style (outline-none) can opt out. */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
 }
 
 body {

@@ -51,11 +51,11 @@ export function logActivity(
 /** Keeps the FTS index in step with an entity. */
 export function indexSearch(
   tx: DbLike,
-  entry: { entity: 'project' | 'item' | 'note'; entityId: string; projectId: string; title: string; body?: string | null },
+  entry: { entity: 'project' | 'item' | 'note'; entityId: string; projectId: string; title: string; body?: string | null; tags?: string[] },
 ) {
   removeSearch(tx, entry.entity, entry.entityId);
   tx.run(
-    sql`insert into search (entity, entity_id, project_id, title, body) values (${entry.entity}, ${entry.entityId}, ${entry.projectId}, ${entry.title}, ${entry.body ?? ''})`,
+    sql`insert into search (entity, entity_id, project_id, title, body, tags) values (${entry.entity}, ${entry.entityId}, ${entry.projectId}, ${entry.title}, ${entry.body ?? ''}, ${(entry.tags ?? []).join(' ')})`,
   );
 }
 

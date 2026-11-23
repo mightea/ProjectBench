@@ -1,8 +1,10 @@
 import type { SearchHit } from '@projectbench/core/schemas';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { SearchIcon } from '../components/icons.tsx';
+import { TagFilter } from '../components/TagFilter.tsx';
 import { useOffline } from '../lib/connection.ts';
 import { useSearch } from '../lib/queries.ts';
+import { useTagFilter } from '../useRoute.ts';
 import { appLink, type Navigate } from './DailyItem.tsx';
 
 const GROUPS: { entity: SearchHit['entity']; label: string }[] = [
@@ -15,14 +17,21 @@ export function SearchScreen({ navigate }: { navigate: Navigate }) {
   const [text, setText] = useState('');
   const [query, setQuery] = useState('');
   const offline = useOffline();
-  const results = useSearch(query);
+  const [tag, setTag] = useTagFilter();
+  const fullQuery = [tag && `#${tag}`, query].filter(Boolean).join(' ');
+  const results = useSearch(fullQuery);
+  const input = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (window.matchMedia?.('(min-width: 768px)').matches) input.current?.focus();
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => setQuery(text.trim()), 200);
     return () => clearTimeout(timer);
   }, [text]);
 
-  const hits = query ? (results.data ?? []) : [];
+  const hits = fullQuery ? (results.data ?? []) : [];
 
   return (
     <>
@@ -30,21 +39,24 @@ export function SearchScreen({ navigate }: { navigate: Navigate }) {
         <h1 className="font-display text-[32px] font-semibold tracking-tight">Search</h1>
         <label className="flex h-11 items-center gap-2 rounded-xl border border-line bg-surface px-3 text-muted md:max-w-md">
           <SearchIcon width={18} height={18} />
-          <span className="sr-only">Search projects, items and notes</span>
+          <span className="sr-only">Search projects, tags, items and notes</span>
           <input
+            ref={input}
+            id="global-search"
             type="search"
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder="Projects, items, notes"
+            placeholder="Projects, #tags, items, notes"
             className="min-w-0 flex-1 bg-transparent text-[15px] text-ink outline-none"
           />
         </label>
+        <TagFilter value={tag} onChange={setTag} />
       </header>
       <main className="flex flex-1 flex-col gap-4 px-4 pb-28 md:max-w-3xl md:px-8 md:pb-10">
         {offline ? (
           <Message>Search needs a connection to the server.</Message>
-        ) : !query ? (
-          <Message>Search across projects, checklist items and notes.</Message>
+        ) : !fullQuery ? (
+          <Message>Search across projects, tags, checklist items and notes.</Message>
         ) : results.isError ? (
           <p role="alert" className="rounded-xl bg-danger-soft px-4 py-3 text-danger">
             {results.error.message}
@@ -52,7 +64,7 @@ export function SearchScreen({ navigate }: { navigate: Navigate }) {
         ) : results.isPending ? (
           <p className="px-1 py-6 text-muted">Searching…</p>
         ) : hits.length === 0 ? (
-          <Message>Nothing found for “{query}”.</Message>
+          <Message>Nothing found for “{fullQuery}”.</Message>
         ) : (
           GROUPS.map(({ entity, label }) => {
             const group = hits.filter((h) => h.entity === entity);
@@ -67,6 +79,7 @@ export function SearchScreen({ navigate }: { navigate: Navigate }) {
                         <span className="line-clamp-2 text-[15px] leading-snug font-medium">{hit.title || hit.snippet}</span>
                         {hit.title && hit.snippet && hit.snippet !== hit.title && <span className="line-clamp-2 text-[13px] text-muted">{hit.snippet}</span>}
                         {entity !== 'project' && <span className="text-xs text-muted">{hit.projectTitle}</span>}
+                        {entity === 'project' && hit.tags.length > 0 && <span className="text-xs text-muted">{hit.tags.map((t) => `#${t}`).join(' ')}</span>}
                       </a>
                     </li>
                   ))}

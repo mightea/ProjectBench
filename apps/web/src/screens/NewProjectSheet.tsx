@@ -1,7 +1,9 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useId, useState, type FormEvent } from 'react';
 import { api } from '../api.ts';
+import { DateField } from '../components/DateField.tsx';
 import { Field, inputClass, Sheet } from '../components/Sheet.tsx';
+import { TagInput } from '../components/TagInput.tsx';
 import { PRIORITY_META } from '../lib/format.ts';
 import { useCreateProject } from '../lib/queries.ts';
 
@@ -16,8 +18,8 @@ export function NewProjectSheet({ onClose, onCreated }: { onClose: () => void; o
   const qc = useQueryClient();
   const [title, setTitle] = useState('');
   const [priority, setPriority] = useState(3);
-  const [dueDate, setDueDate] = useState('');
-  const [tags, setTags] = useState('');
+  const [dueDate, setDueDate] = useState<string | null>(null);
+  const [tags, setTags] = useState<string[]>([]);
   const [lists, setLists] = useState<string[]>(['buy', 'todo']);
   const ids = { title: useId(), due: useId(), tags: useId() };
 
@@ -28,8 +30,8 @@ export function NewProjectSheet({ onClose, onCreated }: { onClose: () => void; o
       title,
       priority,
       status: 'active',
-      dueDate: dueDate || null,
-      tags: tags.split(/[,\s]+/).filter(Boolean),
+      dueDate,
+      tags,
     });
     // Starter checklists, in the usual order.
     for (const list of STARTER_LISTS.filter((l) => lists.includes(l.kind))) {
@@ -60,7 +62,7 @@ export function NewProjectSheet({ onClose, onCreated }: { onClose: () => void; o
         </Field>
 
         <fieldset className="flex flex-col gap-1.5">
-          <legend className="mb-1.5 text-[13px] font-semibold text-[#3F4450]">Priority</legend>
+          <legend className="mb-1.5 text-[13px] font-semibold text-ink-soft">Priority</legend>
           <div className="grid grid-cols-4 gap-2">
             {[1, 2, 3, 4].map((p) => (
               <button
@@ -80,15 +82,15 @@ export function NewProjectSheet({ onClose, onCreated }: { onClose: () => void; o
         </fieldset>
 
         <Field label="Due date" htmlFor={ids.due} hint="Optional">
-          <input id={ids.due} type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className={inputClass} />
+          <DateField id={ids.due} value={dueDate} onCommit={setDueDate} />
         </Field>
 
-        <Field label="Tags" htmlFor={ids.tags} hint="Separate with commas, e.g. homelab, electronics">
-          <input id={ids.tags} value={tags} onChange={(e) => setTags(e.target.value)} className={inputClass} autoCapitalize="none" />
+        <Field label="Tags" htmlFor={ids.tags} hint="Press Enter or type a comma to add">
+          <TagInput id={ids.tags} value={tags} onChange={setTags} />
         </Field>
 
         <fieldset className="flex flex-col gap-1.5">
-          <legend className="mb-1.5 text-[13px] font-semibold text-[#3F4450]">Start with these lists</legend>
+          <legend className="mb-1.5 text-[13px] font-semibold text-ink-soft">Start with these lists</legend>
           <div className="flex flex-wrap gap-2">
             {STARTER_LISTS.map((l) => {
               const on = lists.includes(l.kind);
@@ -98,7 +100,7 @@ export function NewProjectSheet({ onClose, onCreated }: { onClose: () => void; o
                   type="button"
                   aria-pressed={on}
                   onClick={() => setLists(on ? lists.filter((k) => k !== l.kind) : [...lists, l.kind])}
-                  className={`h-11 rounded-xl px-4 text-sm ${on ? 'border-2 border-accent bg-accent-soft font-semibold text-[#2448C2]' : 'border border-line font-medium'}`}
+                  className={`h-11 rounded-xl px-4 text-sm ${on ? 'border-2 border-accent bg-accent-soft font-semibold text-accent-ink' : 'border border-line font-medium'}`}
                 >
                   {l.title}
                 </button>

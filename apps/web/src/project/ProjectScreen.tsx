@@ -1,10 +1,10 @@
-import { PROJECT_STATUSES, type ProjectDetail, type ProjectStatus } from '@projectbench/core/schemas';
-import { useEffect, useId, useState, type FormEvent, type MouseEvent } from 'react';
+import type { ProjectDetail } from '@projectbench/core/schemas';
+import { useEffect, useState, type MouseEvent } from 'react';
 import { ApiError } from '../api.ts';
 import { PriorityBadge, ProgressBar, progressLabel } from '../components/bits.tsx';
-import { BackIcon, ChevronDownIcon, DotsIcon, PlusIcon } from '../components/icons.tsx';
-import { Field, inputClass, Sheet } from '../components/Sheet.tsx';
-import { dueTone, dueToneClass, formatDue, PRIORITY_META, STATUS_META } from '../lib/format.ts';
+import { BackIcon, DotsIcon, PlusIcon } from '../components/icons.tsx';
+import { Sheet } from '../components/Sheet.tsx';
+import { dueTone, dueToneClass, formatDue, STATUS_META } from '../lib/format.ts';
 import { QueryFallback } from '../components/QueryFallback.tsx';
 import { useAttachments, useNotes, useProject, useProjectMutations } from '../lib/queries.ts';
 import { ChecklistCard } from './ChecklistCard.tsx';
@@ -12,6 +12,7 @@ import { ChecklistSheet } from './ChecklistSheet.tsx';
 import { FilesTab } from './FilesTab.tsx';
 import { ItemSheet } from './ItemSheet.tsx';
 import { NotesTab } from './NotesTab.tsx';
+import { DetailsSheet, ProjectProperties } from './ProjectDetails.tsx';
 
 const TABS = [
   { id: 'checklists', label: 'Checklists' },
@@ -27,12 +28,17 @@ type Panel =
   | { type: 'details' }
   | { type: 'actions' };
 
-export function ProjectScreen({ id, navigate }: { id: string; navigate: (to: string) => void }) {
+export interface BackLink {
+  to: string;
+  label: string;
+}
+
+export function ProjectScreen({ id, navigate, back }: { id: string; navigate: (to: string) => void; back: BackLink }) {
   const project = useProject(id);
 
   const missing = project.error instanceof ApiError && project.error.status === 404;
   // Cached data stays on screen when a refresh fails, unless the project is really gone.
-  if (project.data && !missing) return <ProjectView project={project.data} navigate={navigate} />;
+  if (project.data && !missing) return <ProjectView project={project.data} navigate={navigate} backLink={back} />;
   if (project.isPending && project.fetchStatus !== 'paused') return <p className="p-6 text-muted">Loading…</p>;
   return (
     <div className="flex flex-col items-start gap-3 p-6">
@@ -43,23 +49,20 @@ export function ProjectScreen({ id, navigate }: { id: string; navigate: (to: str
       ) : (
         <QueryFallback query={project} />
       )}
-      <a href="/projects" onClick={(e) => (e.preventDefault(), navigate('/projects'))} className="font-semibold text-accent">
+      <a href="/projects" onClick={(e) => (e.preventDefault(), navigate('/projects'))} className="font-semibold text-accent-ink">
         Back to projects
       </a>
     </div>
   );
 }
 
-function ProjectView({ project: p, navigate }: { project: ProjectDetail; navigate: (to: string) => void }) {
+function ProjectView({ project: p, navigate, backLink }: { project: ProjectDetail; navigate: (to: string) => void; backLink: BackLink }) {
   const m = useProjectMutations(p.id);
   const notes = useNotes(p.id);
   const files = useAttachments(p.id);
   const [tab, setTab] = useState<TabId>('checklists');
   const [panel, setPanel] = useState<Panel | null>(null);
   const close = () => setPanel(null);
-  const statusId = useId();
-  const priorityId = useId();
-  const dueId = useId();
 
   useEffect(() => {
     document.title = `${p.title} · ProjectBench`;
@@ -70,115 +73,94 @@ function ProjectView({ project: p, navigate }: { project: ProjectDetail; navigat
 
   const back = (e: MouseEvent) => {
     e.preventDefault();
-    navigate('/projects');
+    navigate(backLink.to);
   };
 
   const item = panel?.type === 'item' ? p.checklists.flatMap((c) => c.items).find((i) => i.id === panel.id) : undefined;
   const editing = panel?.type === 'checklist' ? p.checklists.find((c) => c.id === panel.id) : undefined;
 
   return (
-    <div className="flex min-h-dvh w-full flex-col md:min-h-0 md:max-w-[50rem]">
+    <div className="w-full flex-1 lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:pr-8">
+    <div className="flex min-h-dvh min-w-0 flex-col md:min-h-0">
       <div className="border-b border-line bg-surface md:border-b-0 md:bg-transparent">
         <div className="flex items-center justify-between px-2 pt-3 md:px-6 md:pt-5">
-          <a href="/projects" onClick={back} className="flex h-11 items-center gap-1 rounded-full pr-3 pl-1.5 text-[15px] font-medium hover:bg-ground">
+          <a href={backLink.to} onClick={back} className="flex h-11 items-center gap-1 rounded-full pr-3 pl-1.5 text-[15px] font-medium hover:bg-ground">
             <BackIcon width={22} height={22} />
-            <span className="md:inline">Projects</span>
+            <span>{backLink.label}</span>
           </a>
-          <button
-            type="button"
-            onClick={() => setPanel({ type: 'actions' })}
-            aria-label="More actions"
-            className="flex size-11 items-center justify-center rounded-full hover:bg-ground"
-          >
-            <DotsIcon width={22} height={22} />
-          </button>
+          <div className="flex items-center gap-1">
+            <button type="button" onClick={() => setPanel({ type: 'details' })} className="h-11 rounded-full px-4 text-sm font-semibold text-accent-ink hover:bg-accent-soft">
+              Edit
+            </button>
+            <button
+              type="button"
+              onClick={() => setPanel({ type: 'actions' })}
+              aria-label="More actions"
+              className="flex size-11 items-center justify-center rounded-full hover:bg-ground"
+            >
+              <DotsIcon width={22} height={22} />
+            </button>
+          </div>
         </div>
 
         <div className="flex flex-col gap-3 px-5 pt-1 pb-4 md:px-8">
-          <button type="button" onClick={() => setPanel({ type: 'details' })} className="text-left">
+          <div>
             <h1 className="font-display text-[26px] leading-tight font-semibold tracking-tight md:text-[30px]">{p.title}</h1>
             {p.description ? (
-              <p className="mt-1.5 line-clamp-3 text-sm leading-relaxed whitespace-pre-line text-muted">{p.description}</p>
+              <p className="mt-1.5 text-sm leading-relaxed whitespace-pre-line text-muted">{p.description}</p>
             ) : (
-              <p className="mt-1 text-sm text-muted">Add a description</p>
-            )}
-          </button>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <label htmlFor={statusId} className="sr-only">
-              Status
-            </label>
-            <span className="relative flex h-8 items-center gap-1.5 rounded-lg border border-line bg-surface pr-7 pl-2.5 text-[13px] font-medium">
-              <span className={`size-2 rounded-full ${STATUS_META[p.status].dot}`} aria-hidden="true" />
-              {STATUS_META[p.status].label}
-              <ChevronDownIcon width={14} height={14} className="absolute right-2 text-muted" />
-              <select
-                id={statusId}
-                value={p.status}
-                onChange={(e) => m.updateProject.mutate({ status: e.target.value as ProjectStatus })}
-                className="absolute inset-0 cursor-pointer opacity-0"
-              >
-                {PROJECT_STATUSES.map((s) => (
-                  <option key={s} value={s}>
-                    {STATUS_META[s].label}
-                  </option>
-                ))}
-              </select>
-            </span>
-
-            <label htmlFor={priorityId} className="sr-only">
-              Priority
-            </label>
-            <span className="relative flex h-8 items-center">
-              <PriorityBadge priority={p.priority} long />
-              <select
-                id={priorityId}
-                value={p.priority}
-                onChange={(e) => m.updateProject.mutate({ priority: Number(e.target.value) })}
-                className="absolute inset-0 cursor-pointer opacity-0"
-              >
-                {[1, 2, 3, 4].map((n) => (
-                  <option key={n} value={n}>
-                    {PRIORITY_META[n]!.short} · {PRIORITY_META[n]!.label}
-                  </option>
-                ))}
-              </select>
-            </span>
-
-            <label htmlFor={dueId} className="sr-only">
-              Due date
-            </label>
-            <span
-              className={`relative flex h-8 items-center rounded-lg border border-line bg-surface px-2.5 text-[13px] font-medium ${
-                p.dueDate ? dueToneClass[dueTone(p.dueDate)] : 'text-muted'
-              }`}
-            >
-              {p.dueDate ? `Due ${formatDue(p.dueDate)}` : 'No due date'}
-              <input
-                id={dueId}
-                type="date"
-                value={p.dueDate ?? ''}
-                onChange={(e) => m.updateProject.mutate({ dueDate: e.target.value || null })}
-                className="absolute inset-0 cursor-pointer opacity-0"
-              />
-            </span>
-
-            {p.tags.map((t) => (
-              <button
-                key={t}
-                type="button"
-                onClick={() => setPanel({ type: 'details' })}
-                className="h-8 rounded-lg border border-line bg-surface px-2.5 text-[13px] font-medium text-muted"
-              >
-                #{t}
+              <button type="button" onClick={() => setPanel({ type: 'details' })} className="mt-1 min-h-11 text-sm text-muted hover:text-ink lg:min-h-0">
+                Add a description
               </button>
-            ))}
+            )}
           </div>
 
-          <div className="flex items-center gap-2.5">
+          {/* On desktop these fields are in the panel beside the project. */}
+          <div className="flex flex-wrap items-center gap-2 lg:hidden">
+            <button type="button" onClick={() => setPanel({ type: 'details' })} aria-label={`Edit status: ${STATUS_META[p.status].label}`} className="flex h-11 items-center gap-1.5 rounded-lg border border-line bg-surface px-2.5 text-[13px] font-medium md:h-9">
+              <span className={`size-2 rounded-full ${STATUS_META[p.status].dot}`} aria-hidden="true" />
+              {STATUS_META[p.status].label}
+            </button>
+            <button type="button" onClick={() => setPanel({ type: 'details' })} aria-label={`Edit priority: P${p.priority}`} className="flex h-11 items-center md:h-9">
+              <PriorityBadge priority={p.priority} long />
+            </button>
+            <button
+              type="button"
+              onClick={() => setPanel({ type: 'details' })}
+              className={`h-11 rounded-lg border border-line bg-surface px-2.5 text-[13px] font-medium md:h-9 ${p.dueDate ? dueToneClass[dueTone(p.dueDate)] : 'text-muted'}`}
+            >
+              {p.dueDate ? `Due ${formatDue(p.dueDate)}` : 'Add due date'}
+            </button>
+            {p.tags.map((t) => (
+              <a
+                key={t}
+                href={`/projects?tag=${encodeURIComponent(t)}`}
+                onClick={(e) => {
+                  if (e.metaKey || e.ctrlKey || e.shiftKey) return;
+                  e.preventDefault();
+                  navigate(`/projects?tag=${encodeURIComponent(t)}`);
+                }}
+                className="flex h-11 items-center rounded-lg border border-line bg-surface px-2.5 text-[13px] font-medium text-muted md:h-9"
+              >
+                #{t}
+              </a>
+            ))}
+            {p.tags.length === 0 && (
+              <button type="button" onClick={() => setPanel({ type: 'details' })} className="h-11 rounded-lg border border-dashed border-line-strong px-2.5 text-[13px] font-medium text-muted md:h-9">
+                Add tags
+              </button>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2.5 lg:hidden">
             <ProgressBar progress={p.progress} className="h-1.5 flex-1" />
             <span className="text-xs whitespace-nowrap text-muted">{progressLabel(p.progress)}</span>
           </div>
+          {m.updateProject.isError && (
+            <p role="alert" className="rounded-xl bg-danger-soft px-4 py-3 text-sm text-danger">
+              {m.updateProject.error.message}
+            </p>
+          )}
         </div>
 
         <div role="tablist" aria-label="Project sections" className="flex px-3 md:px-6">
@@ -192,7 +174,7 @@ function ProjectView({ project: p, navigate }: { project: ProjectDetail; navigat
                 aria-selected={tab === t.id}
                 onClick={() => setTab(t.id)}
                 className={`h-11 flex-1 border-b-2 text-sm md:flex-none md:px-5 ${
-                  tab === t.id ? 'border-accent font-semibold text-accent' : 'border-transparent font-medium text-muted'
+                  tab === t.id ? 'border-accent font-semibold text-accent-ink' : 'border-transparent font-medium text-muted'
                 }`}
               >
                 {t.label}
@@ -226,18 +208,20 @@ function ProjectView({ project: p, navigate }: { project: ProjectDetail; navigat
         <button
           type="button"
           onClick={() => setPanel({ type: 'new-checklist' })}
-          className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-dashed border-[#C9CDD6] text-[15px] font-semibold text-accent hover:bg-surface"
+          className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-dashed border-line-strong text-[15px] font-semibold text-accent-ink hover:bg-surface"
         >
           <PlusIcon width={18} height={18} />
           Add checklist
         </button>
-        {(m.updateItem.isError || m.addItems.isError || m.updateProject.isError) && (
+        {(m.updateItem.isError || m.addItems.isError) && (
           <p role="alert" className="rounded-xl bg-danger-soft px-4 py-3 text-sm text-danger">
-            {(m.updateItem.error ?? m.addItems.error ?? m.updateProject.error)?.message}
+            {(m.updateItem.error ?? m.addItems.error)?.message}
           </p>
         )}
       </main>
       )}
+    </div>
+    <ProjectProperties project={p} onChange={(patch) => m.updateProject.mutate(patch)} />
 
       {item && <ItemSheet projectId={p.id} item={item} checklists={p.checklists} mutations={m} onClose={close} />}
       {editing && (
@@ -265,52 +249,6 @@ function ProjectView({ project: p, navigate }: { project: ProjectDetail; navigat
   );
 }
 
-function DetailsSheet({
-  project,
-  onSave,
-  onClose,
-}: {
-  project: ProjectDetail;
-  onSave: (patch: { title: string; description: string; tags: string[] }) => void;
-  onClose: () => void;
-}) {
-  const [title, setTitle] = useState(project.title);
-  const [description, setDescription] = useState(project.description ?? '');
-  const [tags, setTags] = useState(project.tags.join(', '));
-  const ids = { title: useId(), description: useId(), tags: useId() };
-
-  const submit = (e: FormEvent) => {
-    e.preventDefault();
-    if (!title.trim()) return;
-    onSave({ title, description, tags: tags.split(/[,\s]+/).filter(Boolean) });
-    onClose();
-  };
-
-  return (
-    <Sheet
-      title="Project details"
-      onClose={onClose}
-      footer={
-        <button type="submit" form="details-form" disabled={!title.trim()} className="h-12 w-full rounded-xl bg-accent font-semibold text-white hover:bg-accent-strong disabled:opacity-50">
-          Save
-        </button>
-      }
-    >
-      <form id="details-form" onSubmit={submit} className="flex flex-col gap-4">
-        <Field label="Title" htmlFor={ids.title}>
-          <input id={ids.title} value={title} onChange={(e) => setTitle(e.target.value)} required maxLength={200} className={inputClass} />
-        </Field>
-        <Field label="Description" htmlFor={ids.description}>
-          <textarea id={ids.description} value={description} onChange={(e) => setDescription(e.target.value)} rows={5} className={`${inputClass} h-auto py-3`} />
-        </Field>
-        <Field label="Tags" htmlFor={ids.tags} hint="Separate with commas">
-          <input id={ids.tags} value={tags} onChange={(e) => setTags(e.target.value)} autoCapitalize="none" className={inputClass} />
-        </Field>
-      </form>
-    </Sheet>
-  );
-}
-
 function ActionsSheet({
   project,
   onArchive,
@@ -330,7 +268,7 @@ function ActionsSheet({
           {project.status === 'archived' ? 'Restore project' : 'Archive project'}
         </button>
         {confirm ? (
-          <button type="button" onClick={() => (onDelete(), onClose())} className="h-12 rounded-xl bg-danger text-[15px] font-semibold text-white">
+          <button type="button" onClick={() => (onDelete(), onClose())} className="h-12 rounded-xl bg-danger-fill text-[15px] font-semibold text-white">
             Delete permanently, with all checklists, notes and files
           </button>
         ) : (
