@@ -1,5 +1,13 @@
 # Changelog
 
+## [2026.11.3](https://github.com/mightea/ProjectBench/compare/2026.11.2...2026.11.3) (2026-11-23)
+
+
+### ✨ Features
+
+* add notes timeline and file attachments ([158f1a7](https://github.com/mightea/ProjectBench/commit/158f1a7efffa33b69a7508186e8ca4a34d422f04))
+* add Today, Buy, search and offline reading ([#9](https://github.com/mightea/ProjectBench/issues/9)) ([8bd56d1](https://github.com/mightea/ProjectBench/commit/8bd56d1a6f23da28b98bdeeb1bbc1bbb298c0e2e))
+
 ## [2026.11.2](https://github.com/mightea/ProjectBench/compare/2026.11.1...2026.11.2) (2026-11-23)
 
 
