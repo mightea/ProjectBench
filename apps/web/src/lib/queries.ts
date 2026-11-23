@@ -85,17 +85,36 @@ export function useItemState() {
   });
 }
 
-/** Marks a delivery as received. Items that succeed stay received if another one fails. */
+interface ItemRef {
+  id: string;
+  projectId: string;
+}
+
+/** Applies one change to several items. Items that succeed keep it if another one fails. */
+async function patchItems(items: ItemRef[], patch: ItemUpdate) {
+  const results = await Promise.allSettled(items.map(({ id }) => api.patch<ChecklistItem>(`/api/items/${id}`, patch)));
+  const failed = results.filter((r) => r.status === 'rejected').length;
+  if (failed) throw new Error(`${failed} of ${items.length} items could not be updated`);
+}
+
+const refreshItems = (qc: QueryClient, items: ItemRef[]) =>
+  onlineManager.isOnline() ? Promise.all([...new Set(items.map((i) => i.projectId))].map((id) => refresh(qc, id))) : undefined;
+
+/** Marks a delivery as received. */
 export function useMarkReceived() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (items: { id: string; projectId: string }[]) => {
-      const results = await Promise.allSettled(items.map(({ id }) => api.patch<ChecklistItem>(`/api/items/${id}`, { state: 'done' })));
-      const failed = results.filter((r) => r.status === 'rejected').length;
-      if (failed) throw new Error(`${failed} of ${items.length} items could not be updated`);
-    },
-    onSettled: (_data, _error, items) =>
-      onlineManager.isOnline() ? Promise.all([...new Set(items.map((i) => i.projectId))].map((id) => refresh(qc, id))) : undefined,
+    mutationFn: (items: ItemRef[]) => patchItems(items, { state: 'done' }),
+    onSettled: (_data, _error, items) => refreshItems(qc, items),
+  });
+}
+
+/** Marks items as ordered, or changes the order number and delivery date of an order. */
+export function useUpdateOrder() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ items, patch }: { items: ItemRef[]; patch: Pick<ItemUpdate, 'state' | 'orderRef' | 'expectedDate' | 'paidTotal' | 'paidCurrency'> }) => patchItems(items, patch),
+    onSettled: (_data, _error, { items }) => refreshItems(qc, items),
   });
 }
 
@@ -178,6 +197,8 @@ export function useProjectMutations(projectId: string) {
                       state: 'open' as const,
                       orderedAt: null,
                       orderRef: null,
+                      paidTotal: null,
+                      paidCurrency: null,
                       expectedDate: null,
                       doneAt: null,
                       dueDate: null,

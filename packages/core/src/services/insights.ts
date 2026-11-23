@@ -1,6 +1,6 @@
 import { and, asc, eq, inArray, isNotNull, ne, notInArray, sql, type SQL } from 'drizzle-orm';
 import { attachments, checklistItems, checklists, projects } from '../schema.ts';
-import { normalizeTag, type Agenda, type BuyGroup, type BuyOverview, type ChecklistItem, type ItemLink, type ItemWithContext, type SearchHit } from '../schemas.ts';
+import { normalizeTag, shopKey, shopLabel, type Agenda, type BuyGroup, type BuyOverview, type ChecklistItem, type ItemLink, type ItemWithContext, type SearchHit } from '../schemas.ts';
 import type { ServiceContext } from './context.ts';
 import { getItem } from './items.ts';
 import { listNotes } from './notes.ts';
@@ -148,10 +148,15 @@ export function buyOverview(ctx: ServiceContext, tag?: string): BuyOverview {
   const items = shoppingList(ctx, { tag });
   const toOrder = items.filter((i) => i.state === 'open');
   const shopOf = (item: ItemWithContext) => preferredLink(item)?.shop ?? null;
-  const byShop = groupBy(toOrder, (i) => shopOf(i)?.toLowerCase() ?? '', shopOf).sort((a, b) => {
-    if (a.name === null || b.name === null) return a.name === b.name ? 0 : a.name === null ? 1 : -1;
-    return a.name.localeCompare(b.name);
-  });
+  const byShop = groupBy(toOrder, (i) => shopKey(shopOf(i) ?? ''), shopOf)
+    .map((group) => {
+      const names = group.items.map(shopOf).filter((n): n is string => n !== null);
+      return names.length ? { ...group, name: shopLabel(names) } : group;
+    })
+    .sort((a, b) => {
+      if (a.name === null || b.name === null) return a.name === b.name ? 0 : a.name === null ? 1 : -1;
+      return a.name.localeCompare(b.name);
+    });
   const ordered = items
     .filter((i) => i.state === 'ordered')
     .sort((a, b) => (a.expectedDate ?? '9999').localeCompare(b.expectedDate ?? '9999'));
@@ -174,6 +179,7 @@ function itemMarkdown(item: ChecklistItem): string[] {
     item.dueDate && `due ${item.dueDate}`,
     item.state === 'ordered' && 'ordered',
     item.orderRef && `order ${item.orderRef}`,
+    item.paidTotal !== null && `order total paid ${item.paidCurrency ?? 'CHF'} ${item.paidTotal.toFixed(2)}`,
     item.expectedDate && `expected ${item.expectedDate}`,
     `id: ${item.id}`,
   ].filter(Boolean);

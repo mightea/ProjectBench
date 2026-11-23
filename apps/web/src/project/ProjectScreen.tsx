@@ -6,7 +6,7 @@ import { LinkedText } from '../components/LinkedText.tsx';
 import { ProjectTile } from '../components/ProjectTile.tsx';
 import { Sheet } from '../components/Sheet.tsx';
 import { dueTone, dueToneClass, formatDue, PRIORITY_META, STATUS_META } from '../lib/format.ts';
-import { lookStyle, projectColor } from '../lib/look.ts';
+import { CONTENT_WIDTH, lookStyle, projectColor } from '../lib/look.ts';
 import { QueryFallback } from '../components/QueryFallback.tsx';
 import { useAttachments, useNotes, useProject, useProjectMutations } from '../lib/queries.ts';
 import { ChecklistCard } from './ChecklistCard.tsx';
@@ -105,17 +105,17 @@ function ProjectView({ project: p, navigate, backLink }: { project: ProjectDetai
 
   return (
     <div className="w-full flex-1" style={lookStyle(projectColor(p))}>
-      <header className="bg-(--look-soft) pb-4 md:rounded-b-2xl">
+      <header className="bg-(--look-soft) pb-4">
         {coverUrl && (
           <img
             src={`${coverUrl}/thumb`}
             srcSet={cover?.width && cover.width > 480 ? `${coverUrl}/thumb 480w, ${coverUrl} ${cover.width}w` : undefined}
             sizes="100vw"
             alt=""
-            className="h-36 w-full object-cover md:h-48 md:rounded-b-2xl"
+            className="h-36 w-full object-cover md:h-48"
           />
         )}
-        <div className="flex items-center justify-between px-2 pt-2.5 md:px-6 md:pt-5">
+        <div className={`mx-auto flex w-full items-center justify-between px-2 pt-2.5 md:px-6 md:pt-5 ${CONTENT_WIDTH}`}>
           <a href={backLink.to} onClick={back} className="flex h-11 items-center gap-1 rounded-full pr-3 pl-1.5 text-[15px] font-medium hover:bg-surface/60">
             <BackIcon width={22} height={22} />
             <span>{backLink.label}</span>
@@ -133,7 +133,7 @@ function ProjectView({ project: p, navigate, backLink }: { project: ProjectDetai
           </div>
         </div>
 
-        <div className="flex flex-col gap-3 px-5 pt-1.5 md:px-8">
+        <div className={`mx-auto flex w-full flex-col gap-3 px-5 pt-1.5 md:px-8 ${CONTENT_WIDTH}`}>
           <div className="flex items-center gap-3.5">
             <button type="button" onClick={() => setPanel({ type: 'look' })} aria-label="Change project look" className="shrink-0 rounded-[14px]">
               <ProjectTile project={p} size={52} />
@@ -202,16 +202,19 @@ function ProjectView({ project: p, navigate, backLink }: { project: ProjectDetai
         </div>
       </header>
 
-      <div className="flex flex-col gap-3.5 px-4 pt-3.5 pb-10 md:px-8 md:pt-6 lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-x-6 lg:gap-y-4">
+      {/* Details: beside the content at lg and 2xl, as a row of three above it at xl. */}
+      <div
+        className={`mx-auto flex w-full flex-col gap-3.5 px-4 pt-3.5 pb-10 md:px-8 md:pt-6 lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-x-6 lg:gap-y-4 xl:grid-cols-[minmax(0,1fr)] 2xl:grid-cols-[minmax(0,1fr)_22.5rem] ${CONTENT_WIDTH}`}
+      >
         <OverviewTiles project={p} onJump={jumpTo} />
 
-        <div className="flex min-w-0 flex-col gap-3.5 lg:col-start-2 lg:row-span-2 lg:row-start-1">
+        <div className="flex min-w-0 flex-col gap-3.5 lg:col-start-2 lg:row-span-2 lg:row-start-1 xl:col-start-1 xl:row-span-1 xl:grid xl:grid-cols-3 xl:items-start 2xl:col-start-2 2xl:row-span-2 2xl:flex 2xl:items-stretch">
           <UpNext project={p} onDone={(itemId) => m.updateItem.mutate({ id: itemId, state: 'done' })} />
           <LatestNote notes={notes.data} onAll={() => setTab('notes')} />
           <ProjectProperties project={p} onChange={(patch) => m.updateProject.mutate(patch)} />
         </div>
 
-        <div className="flex min-w-0 flex-col gap-3.5 lg:col-start-1">
+        <div className="flex min-w-0 flex-col gap-3.5 lg:col-start-1 xl:row-start-3 2xl:row-start-2">
           <div role="tablist" aria-label="Project sections" className="flex rounded-[10px] bg-line p-[3px] md:gap-1 md:rounded-none md:border-b md:border-line md:bg-transparent md:p-0">
             {TABS.map((t) => {
               const count = t.id === 'notes' ? notes.data?.length : t.id === 'files' ? files.data?.length : undefined;
@@ -244,7 +247,7 @@ function ProjectView({ project: p, navigate, backLink }: { project: ProjectDetai
                   No checklists yet. Add one for things to buy, questions to clarify or steps to do.
                 </p>
               )}
-              <div className="grid items-start gap-3.5 xl:grid-cols-2">
+              <div className="grid items-start gap-3.5 xl:grid-cols-2 2xl:grid-cols-3">
                 {p.checklists.map((c) => (
                   <ChecklistCard
                     key={c.id}

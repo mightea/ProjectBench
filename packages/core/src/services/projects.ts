@@ -187,6 +187,8 @@ export function getProject(ctx: ServiceContext, id: string): ProjectDetail {
         state: i.state,
         orderedAt: i.orderedAt,
         orderRef: i.orderRef,
+        paidTotal: i.paidTotal,
+        paidCurrency: i.paidCurrency,
         expectedDate: i.expectedDate,
         doneAt: i.doneAt,
         dueDate: i.dueDate,

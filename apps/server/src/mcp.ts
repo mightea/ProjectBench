@@ -119,6 +119,8 @@ const brief = (item: ItemWithContext) => {
     unit: item.unit,
     due_date: item.dueDate,
     order_ref: item.orderRef,
+    paid_total: item.paidTotal,
+    paid_currency: item.paidCurrency,
     expected_date: item.expectedDate,
     note: item.note,
     shop: link?.shop ?? null,
@@ -363,6 +365,8 @@ export function createMcpServer(db: Db, files?: FileStore): McpServer {
         item_id: z.string().min(1),
         state: z.enum(ITEM_STATES).optional(),
         order_ref: z.string().nullable().optional(),
+        paid_total: z.number().nonnegative().nullable().optional().describe('What the whole order cost. Set the same amount on every item of the order.'),
+        paid_currency: z.string().length(3).nullable().optional().describe('Defaults to CHF'),
         expected_date: date.nullable().optional(),
         text: z.string().min(1).optional(),
         quantity: z.number().positive().nullable().optional(),
@@ -372,8 +376,8 @@ export function createMcpServer(db: Db, files?: FileStore): McpServer {
       },
       annotations: UPDATE,
     },
-    ({ item_id, order_ref, expected_date, due_date, ...fields }) =>
-      run(() => json(updateItem(ctx, item_id, { ...fields, orderRef: order_ref, expectedDate: expected_date, dueDate: due_date }))),
+    ({ item_id, order_ref, paid_total, paid_currency, expected_date, due_date, ...fields }) =>
+      run(() => json(updateItem(ctx, item_id, { ...fields, orderRef: order_ref, paidTotal: paid_total, paidCurrency: paid_currency, expectedDate: expected_date, dueDate: due_date }))),
   );
 
   server.registerTool(

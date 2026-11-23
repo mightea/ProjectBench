@@ -34,6 +34,9 @@ export const ICON_PATHS: Record<ProjectIcon, string> = {
   box: 'M21 8l-9-5-9 5 9 5 9-5zM3 8v8l9 5 9-5V8M12 13v8',
 };
 
+/** Fills the window at xl; from 2xl, 1600 px of content plus the page gutters, centred. */
+export const CONTENT_WIDTH = 'max-w-[84rem] xl:max-w-none 2xl:max-w-[104rem]';
+
 interface Look {
   id: string;
   color: string | null;

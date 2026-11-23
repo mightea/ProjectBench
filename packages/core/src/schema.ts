@@ -64,6 +64,9 @@ export const checklistItems = sqliteTable(
     state: text('state', { enum: ITEM_STATES }).notNull().default('open'),
     orderedAt: text('ordered_at'),
     orderRef: text('order_ref'),
+    /** What the whole order cost, repeated on each of its items: never add these up. */
+    paidTotal: real('paid_total'),
+    paidCurrency: text('paid_currency'),
     expectedDate: text('expected_date'),
     doneAt: text('done_at'),
     dueDate: text('due_date'),

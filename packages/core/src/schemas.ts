@@ -85,6 +85,9 @@ export const itemUpdateSchema = z.object({
   dueDate: isoDate.optional(),
   note: optionalText(5000).optional(),
   orderRef: optionalText(100).optional(),
+  /** What the whole order cost. Items of one order carry the same amount. */
+  paidTotal: z.number().nonnegative().max(1_000_000).nullable().optional(),
+  paidCurrency: z.string().trim().length(3).toUpperCase().nullable().optional(),
   expectedDate: isoDate.optional(),
   /** Move to another checklist of the same project. */
   checklistId: z.string().min(1).optional(),
@@ -250,6 +253,8 @@ export interface ChecklistItem {
   state: ItemState;
   orderedAt: string | null;
   orderRef: string | null;
+  paidTotal: number | null;
+  paidCurrency: string | null;
   expectedDate: string | null;
   doneAt: string | null;
   dueDate: string | null;
@@ -283,6 +288,19 @@ export interface ItemWithContext extends ChecklistItem {
 
 /** Tags are stored lower-case, without a leading #, with dashes for spaces. */
 export const normalizeTag = (name: string) => name.trim().toLowerCase().replace(/^#/, '').replace(/\s+/g, '-');
+
+const DOMAIN = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/;
+
+/** "Galaxus", "galaxus.ch" and "www.galaxus.ch" are one shop. */
+export function shopKey(name: string): string {
+  const key = name.trim().toLowerCase();
+  return DOMAIN.test(key) ? key.split('.').at(-2)! : key;
+}
+
+/** The name to show for one shop's spellings: a real name rather than a domain. */
+export function shopLabel(names: string[]): string {
+  return names.find((n) => !DOMAIN.test(n.trim().toLowerCase())) ?? names[0]!;
+}
 
 export interface SearchHit {
   entity: 'project' | 'item' | 'note';
