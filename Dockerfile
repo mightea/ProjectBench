@@ -14,14 +14,14 @@ ARG APP_VERSION=0.0.0
 ENV APP_VERSION=$APP_VERSION
 RUN pnpm build
 
-# ---- Runtime dependencies: only the native SQLite module ----
+# ---- Runtime dependencies: the modules left out of the server bundle ----
 FROM node:26-bookworm-slim AS runtime-deps
 # Build tools are a fallback in case no prebuilt binary matches this platform.
 RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ && rm -rf /var/lib/apt/lists/*
 WORKDIR /deps
 COPY apps/server/package.json ./server-package.json
 RUN npm init -y >/dev/null \
- && npm install --omit=dev "better-sqlite3@$(node -p "require('./server-package.json').dependencies['better-sqlite3']")"
+ && npm install --omit=dev $(node -p "const d=require('./server-package.json').dependencies;['better-sqlite3','sharp','heic-decode','unpdf'].map(n=>n+'@'+d[n]).join(' ')")
 
 # ---- Final image ----
 FROM node:26-bookworm-slim

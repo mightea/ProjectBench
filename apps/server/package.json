@@ -16,7 +16,10 @@
     "@projectbench/core": "workspace:*",
     "better-sqlite3": "~12.11.1",
     "drizzle-orm": "^0.45.4",
+    "heic-decode": "^2.1.0",
     "hono": "^4.13.20",
+    "sharp": "^0.35.5",
+    "unpdf": "^2.2.1",
     "zod": "^4.6.7"
   },
   "devDependencies": {

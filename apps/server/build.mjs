@@ -1,5 +1,5 @@
 // Bundles the server (including @projectbench/core) into dist/index.js.
-// better-sqlite3 stays external because it is a native module.
+// Native and WASM modules stay external and are installed in the Docker image.
 import { cpSync, readFileSync, rmSync } from 'node:fs';
 import { build } from 'esbuild';
 
@@ -15,7 +15,7 @@ await build({
   target: 'node22',
   format: 'esm',
   sourcemap: true,
-  external: ['better-sqlite3'],
+  external: ['better-sqlite3', 'sharp', 'heic-decode', 'unpdf'],
   define: { __APP_VERSION__: JSON.stringify(process.env.APP_VERSION || version) },
   banner: {
     // Some bundled CommonJS dependencies call require(); give them one.

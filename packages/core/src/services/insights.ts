@@ -188,14 +188,14 @@ export function projectMarkdown(ctx: ServiceContext, projectId: string): string 
   }
 
   const files = ctx.db
-    .select({ filename: attachments.filename })
+    .select({ id: attachments.id, filename: attachments.filename, mime: attachments.mime })
     .from(attachments)
     .where(eq(attachments.projectId, projectId))
     .orderBy(asc(attachments.filename))
     .all();
   if (files.length) {
     lines.push('', '## Attachments', '');
-    for (const file of files) lines.push(`- ${file.filename}`);
+    for (const file of files) lines.push(`- ${file.filename} (${file.mime}, id: ${file.id})`);
   }
   return lines.join('\n');
 }

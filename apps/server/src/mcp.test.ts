@@ -87,10 +87,12 @@ describe('MCP tools', () => {
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual(
       [
+        'add_attachment',
         'add_items',
         'add_note',
         'agenda',
         'create_project',
+        'get_attachment',
         'get_project',
         'list_projects',
         'open_questions',

@@ -1,3 +1,4 @@
+export * from './attachments.ts';
 export * from './checklists.ts';
 export type { ServiceContext } from './context.ts';
 export * from './insights.ts';

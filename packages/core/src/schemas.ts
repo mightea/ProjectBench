@@ -120,6 +120,15 @@ export const noteCreateSchema = z.object({
   pinned: z.boolean().optional(),
 });
 
+export const noteUpdateSchema = z
+  .object({
+    body: trimmed(20_000).optional(),
+    pinned: z.boolean().optional(),
+  })
+  .refine((v) => v.body !== undefined || v.pinned !== undefined, { message: 'Provide body or pinned' });
+
+export const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
+
 export const apiTokenCreateSchema = z.object({
   name: trimmed(80),
 });
@@ -139,6 +148,7 @@ export const itemLinksSetSchema = z
   });
 
 export type NoteCreate = z.input<typeof noteCreateSchema>;
+export type NoteUpdate = z.input<typeof noteUpdateSchema>;
 export type ApiTokenCreate = z.input<typeof apiTokenCreateSchema>;
 export type ItemLinksSet = z.input<typeof itemLinksSetSchema>;
 
@@ -156,6 +166,21 @@ export interface ApiTokenCreated extends ApiToken {
   token: string;
 }
 
+export interface Attachment {
+  id: string;
+  projectId: string;
+  noteId: string | null;
+  itemId: string | null;
+  filename: string;
+  mime: string;
+  sizeBytes: number;
+  width: number | null;
+  height: number | null;
+  caption: string | null;
+  hasThumbnail: boolean;
+  createdAt: string;
+}
+
 export interface Note {
   id: string;
   projectId: string;
@@ -163,6 +188,8 @@ export interface Note {
   pinned: boolean;
   source: 'app' | 'mcp';
   createdAt: string;
+  updatedAt: string;
+  attachments: Attachment[];
 }
 
 // ---- API response shapes -------------------------------------------------------
