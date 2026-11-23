@@ -51,7 +51,7 @@ Migrations run automatically when the server starts.
 | --- | --- | --- |
 | `DATA_DIR` | `./data` | Folder for `projectbench.db` and uploaded files (`files/`) |
 | `PORT` | `8787` | HTTP port |
-| `PUBLIC_URL` | `http://localhost:8787` | Public address; an `https://` URL turns on Secure cookies |
+| `PUBLIC_URL` | `http://localhost:8787` | Public address; an `https://` URL turns on Secure cookies and passkeys (a domain name, not an IP). Passkeys stop working if the domain changes |
 | `INITIAL_PASSWORD` | – | Sets the login password on first start instead of the setup screen |
 
 ## Connecting Claude (MCP)

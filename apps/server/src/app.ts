@@ -7,9 +7,11 @@ import {
   createSession,
   deleteSession,
   FileStore,
+  hasPasskeys,
   hasPassword,
   MAX_UPLOAD_BYTES,
   MIN_PASSWORD_LENGTH,
+  relyingPartyFor,
   SESSION_TTL_DAYS,
   setPassword,
   validateApiToken,
@@ -26,6 +28,7 @@ import { z } from 'zod';
 import { VERSION, type Config } from './config.ts';
 import { fileRoutes } from './files.ts';
 import { handleMcpRequest } from './mcp.ts';
+import { ChallengeStore, passkeyLoginRoutes, passkeyRoutes, type PasskeyDeps } from './passkeys.ts';
 import { FailureLimiter } from './rate-limit.ts';
 import { apiRoutes } from './routes.ts';
 
@@ -84,6 +87,17 @@ export function createApp({ db, config, limiter = new FailureLimiter() }: AppDep
 
   const isAuthenticated = (c: Context) => validateSession(db, getCookie(c, SESSION_COOKIE));
 
+  const rp = relyingPartyFor(config.publicUrl);
+  const passkeyDeps: PasskeyDeps = {
+    db,
+    rp,
+    limiter,
+    challenges: new ChallengeStore(),
+    secureCookies: config.secureCookies,
+    clientKey,
+    startSession,
+  };
+
   // --- Public endpoints -----------------------------------------------------
 
   app.get('/api/health', (c) => {
@@ -92,7 +106,13 @@ export function createApp({ db, config, limiter = new FailureLimiter() }: AppDep
   });
 
   app.get('/api/auth/state', (c) =>
-    c.json({ passwordSet: hasPassword(db), authenticated: isAuthenticated(c), minPasswordLength: MIN_PASSWORD_LENGTH }),
+    c.json({
+      passwordSet: hasPassword(db),
+      authenticated: isAuthenticated(c),
+      minPasswordLength: MIN_PASSWORD_LENGTH,
+      hasPasskeys: hasPasskeys(db),
+      passkeyOrigins: rp?.origins ?? [],
+    }),
   );
 
   app.post('/api/auth/setup', async (c) => {
@@ -125,6 +145,8 @@ export function createApp({ db, config, limiter = new FailureLimiter() }: AppDep
     return c.json({ ok: true });
   });
 
+  app.route('/api/auth/passkey', passkeyLoginRoutes(passkeyDeps));
+
   app.post('/api/auth/logout', (c) => {
     const token = getCookie(c, SESSION_COOKIE);
     if (token) deleteSession(db, token);
@@ -140,6 +162,7 @@ export function createApp({ db, config, limiter = new FailureLimiter() }: AppDep
   });
 
   app.get('/api/session', (c) => c.json({ authenticated: true }));
+  app.route('/api/passkeys', passkeyRoutes(passkeyDeps));
   app.route('/api', apiRoutes(db, files));
 
   app.all('/api/*', (c) => c.json({ error: 'Not found' }, 404));

@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useId, useState, type FormEvent } from 'react';
 import { api } from '../api.ts';
 import { LogoutIcon } from '../components/icons.tsx';
+import { PasskeySettings } from '../components/PasskeySettings.tsx';
 import { inputClass } from '../components/Sheet.tsx';
 import { ThemeToggle } from '../components/ThemeToggle.tsx';
 
@@ -152,6 +153,8 @@ export function SettingsScreen({ onLogout }: { onLogout: () => void }) {
           <h2 className="font-display text-xl font-semibold">Appearance</h2>
           <ThemeToggle />
         </section>
+
+        <PasskeySettings />
 
         <section className="flex flex-col gap-1">
           <h2 className="font-display text-xl font-semibold">Claude access</h2>

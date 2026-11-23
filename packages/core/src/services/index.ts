@@ -5,6 +5,7 @@ export * from './insights.ts';
 export * from './items.ts';
 export * from './links.ts';
 export * from './notes.ts';
+export * from './passkeys.ts';
 export * from './projects.ts';
 export * from './resolve.ts';
 export * from './tags.ts';

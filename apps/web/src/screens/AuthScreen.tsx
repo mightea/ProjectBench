@@ -2,13 +2,15 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useId, useState, type FormEvent } from 'react';
 import { api } from '../api.ts';
 import { Logo } from '../components/Logo.tsx';
+import { signInWithPasskey } from '../lib/passkeys.ts';
 
 interface Props {
   mode: 'setup' | 'login';
   minLength: number;
+  offerPasskey: boolean;
 }
 
-export function AuthScreen({ mode, minLength }: Props) {
+export function AuthScreen({ mode, minLength, offerPasskey }: Props) {
   const queryClient = useQueryClient();
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -22,9 +24,17 @@ export function AuthScreen({ mode, minLength }: Props) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['auth'] }),
   });
 
+  const passkey = useMutation({
+    mutationFn: signInWithPasskey,
+    onSuccess: (signedIn) => {
+      if (signedIn) return queryClient.invalidateQueries({ queryKey: ['auth'] });
+    },
+  });
+
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
     setLocalError(null);
+    passkey.reset();
     if (mode === 'setup') {
       if (password.length < minLength) return setLocalError(`Use at least ${minLength} characters.`);
       if (password !== confirm) return setLocalError('The passwords don’t match.');
@@ -32,7 +42,8 @@ export function AuthScreen({ mode, minLength }: Props) {
     submit.mutate();
   };
 
-  const error = localError ?? (submit.error ? submit.error.message : null);
+  const error = localError ?? passkey.error?.message ?? submit.error?.message ?? null;
+  const busy = submit.isPending || passkey.isPending;
 
   return (
     <main className="flex min-h-dvh items-center justify-center px-5 py-10">
@@ -90,11 +101,26 @@ export function AuthScreen({ mode, minLength }: Props) {
 
           <button
             type="submit"
-            disabled={submit.isPending}
+            disabled={busy}
             className="h-12 rounded-xl bg-accent font-semibold text-white hover:bg-accent-strong disabled:opacity-60"
           >
             {submit.isPending ? 'One moment…' : mode === 'setup' ? 'Set password and continue' : 'Sign in'}
           </button>
+
+          {mode === 'login' && offerPasskey && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                setLocalError(null);
+                submit.reset();
+                passkey.mutate();
+              }}
+              className="h-12 rounded-xl border border-line-strong bg-surface font-semibold hover:bg-ground disabled:opacity-60"
+            >
+              {passkey.isPending ? 'Waiting for your device…' : 'Sign in with a passkey'}
+            </button>
+          )}
         </div>
       </form>
     </main>

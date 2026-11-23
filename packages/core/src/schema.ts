@@ -206,3 +206,19 @@ export const apiTokens = sqliteTable('api_tokens', {
   lastUsedAt: text('last_used_at'),
   revokedAt: text('revoked_at'),
 });
+
+/** WebAuthn credentials for signing in. Public keys only; the private key stays on the device. */
+export const passkeys = sqliteTable('passkeys', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  /** base64url, as the browser reports it. */
+  credentialId: text('credential_id').notNull().unique(),
+  /** base64url COSE public key. */
+  publicKey: text('public_key').notNull(),
+  counter: integer('counter').notNull().default(0),
+  /** JSON array of authenticator transports. */
+  transports: text('transports'),
+  backedUp: integer('backed_up', { mode: 'boolean' }).notNull().default(false),
+  createdAt: createdAt(),
+  lastUsedAt: text('last_used_at'),
+});

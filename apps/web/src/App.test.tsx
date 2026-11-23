@@ -27,7 +27,7 @@ function renderApp(auth: object, routes: Record<string, unknown> = {}, path = '/
   );
 }
 
-const signedIn = { passwordSet: true, authenticated: true, minPasswordLength: 10 };
+const signedIn = { passwordSet: true, authenticated: true, minPasswordLength: 10, hasPasskeys: false, passkeyOrigins: [] };
 
 const project = {
   id: 'p1',
@@ -110,13 +110,13 @@ afterEach(() => {
 
 describe('App', () => {
   it('asks for a new password on first start', async () => {
-    renderApp({ passwordSet: false, authenticated: false, minPasswordLength: 10 });
+    renderApp({ passwordSet: false, authenticated: false, minPasswordLength: 10, hasPasskeys: false, passkeyOrigins: [] });
     expect(await screen.findByLabelText('New password')).toBeTruthy();
     expect(screen.getByLabelText('Repeat password')).toBeTruthy();
   });
 
   it('shows the sign-in form when a password exists', async () => {
-    renderApp({ passwordSet: true, authenticated: false, minPasswordLength: 10 });
+    renderApp({ passwordSet: true, authenticated: false, minPasswordLength: 10, hasPasskeys: false, passkeyOrigins: [] });
     expect(await screen.findByRole('button', { name: 'Sign in' })).toBeTruthy();
   });
 
@@ -190,7 +190,7 @@ describe('App', () => {
 
   it('removes cached data once signed out', async () => {
     window.history.replaceState(null, '', '/');
-    vi.stubGlobal('fetch', vi.fn(async () => json({ passwordSet: true, authenticated: false, minPasswordLength: 10 })));
+    vi.stubGlobal('fetch', vi.fn(async () => json({ passwordSet: true, authenticated: false, minPasswordLength: 10, hasPasskeys: false, passkeyOrigins: [] })));
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     client.setQueryData(['project', 'p1'], project);
     render(
