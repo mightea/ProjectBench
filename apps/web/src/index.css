@@ -30,4 +30,6 @@ html {
 
 body {
   @apply bg-ground text-ink font-sans antialiased;
+  /* Inter turns "4x20" into "4×20"; part numbers must stay as typed. */
+  font-feature-settings: 'calt' 0;
 }
