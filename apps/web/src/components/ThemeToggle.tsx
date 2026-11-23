@@ -7,8 +7,7 @@ const OPTIONS: { value: ThemeChoice; label: string; Icon: typeof SunIcon }[] = [
   { value: 'dark', label: 'Dark', Icon: MoonIcon },
 ];
 
-/** Compact shows icons only, for the sidebar. */
-export function ThemeToggle({ compact = false }: { compact?: boolean }) {
+export function ThemeToggle() {
   const theme = useTheme();
   return (
     <div role="group" aria-label="Appearance" className="flex rounded-[10px] bg-line p-[3px]">
@@ -17,15 +16,13 @@ export function ThemeToggle({ compact = false }: { compact?: boolean }) {
           key={value}
           type="button"
           aria-pressed={theme === value}
-          aria-label={compact ? `${label} theme` : undefined}
-          title={compact ? `${label} theme` : undefined}
           onClick={() => setTheme(value)}
-          className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg text-sm ${compact ? 'h-8' : 'h-11'} ${
+          className={`flex h-11 flex-1 items-center justify-center gap-1.5 rounded-lg text-sm ${
             theme === value ? 'bg-surface font-semibold shadow-sm' : 'font-medium text-ink-soft'
           }`}
         >
           <Icon width={16} height={16} />
-          {!compact && label}
+          {label}
         </button>
       ))}
     </div>

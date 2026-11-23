@@ -5,7 +5,6 @@ import { CalendarIcon, CartIcon, GridIcon, LogoutIcon, PlusIcon, SearchIcon, Set
 import { Logo } from '../components/Logo.tsx';
 import { OfflineBanner } from '../components/OfflineBanner.tsx';
 import { ProjectTile } from '../components/ProjectTile.tsx';
-import { ThemeToggle } from '../components/ThemeToggle.tsx';
 import { STATUS_META } from '../lib/format.ts';
 import { useProjects, useTags } from '../lib/queries.ts';
 import { CONTENT_WIDTH } from '../lib/look.ts';
@@ -194,7 +193,6 @@ export function Shell() {
           )}
         </div>
         <div className="mt-auto flex flex-col gap-1">
-          <ThemeToggle compact />
           <a
             href="/settings"
             onClick={go('/settings')}
