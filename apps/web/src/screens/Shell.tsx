@@ -3,23 +3,26 @@ import { useEffect, type ComponentType, type MouseEvent, type SVGProps } from 'r
 import { api } from '../api.ts';
 import { CalendarIcon, CartIcon, GridIcon, LogoutIcon, SearchIcon, SettingsIcon } from '../components/icons.tsx';
 import { Logo } from '../components/Logo.tsx';
+import { OfflineBanner } from '../components/OfflineBanner.tsx';
 import { ProjectScreen } from '../project/ProjectScreen.tsx';
 import { useRoute } from '../useRoute.ts';
+import { BuyScreen } from './BuyScreen.tsx';
 import { ProjectsScreen } from './ProjectsScreen.tsx';
+import { SearchScreen } from './SearchScreen.tsx';
 import { SettingsScreen } from './SettingsScreen.tsx';
+import { TodayScreen } from './TodayScreen.tsx';
 
 interface Tab {
   path: string;
   label: string;
   Icon: ComponentType<SVGProps<SVGSVGElement>>;
-  empty?: string;
 }
 
 const TABS: Tab[] = [
-  { path: '/today', label: 'Today', Icon: CalendarIcon, empty: 'Overdue items, this week’s due dates and urgent projects will show up here.' },
+  { path: '/today', label: 'Today', Icon: CalendarIcon },
   { path: '/projects', label: 'Projects', Icon: GridIcon },
-  { path: '/buy', label: 'Buy', Icon: CartIcon, empty: 'Everything still to order across all projects, grouped by shop.' },
-  { path: '/search', label: 'Search', Icon: SearchIcon, empty: 'Search across projects, checklist items and notes.' },
+  { path: '/buy', label: 'Buy', Icon: CartIcon },
+  { path: '/search', label: 'Search', Icon: SearchIcon },
 ];
 
 export function Shell() {
@@ -28,7 +31,7 @@ export function Shell() {
 
   useEffect(() => {
     if (path === '/' || path === '') {
-      window.history.replaceState(null, '', '/projects');
+      window.history.replaceState(null, '', '/today');
       window.dispatchEvent(new PopStateEvent('popstate'));
     }
   }, [path]);
@@ -52,8 +55,10 @@ export function Shell() {
   let content;
   if (projectMatch) content = <ProjectScreen key={projectMatch[1]} id={decodeURIComponent(projectMatch[1]!)} navigate={navigate} />;
   else if (!active) content = <SettingsScreen onLogout={() => logout.mutate()} />;
-  else if (active.path === '/projects') content = <ProjectsScreen navigate={navigate} />;
-  else content = <Placeholder tab={active} onLogout={() => logout.mutate()} />;
+  else if (active.path === '/today') content = <TodayScreen navigate={navigate} />;
+  else if (active.path === '/buy') content = <BuyScreen navigate={navigate} />;
+  else if (active.path === '/search') content = <SearchScreen navigate={navigate} />;
+  else content = <ProjectsScreen navigate={navigate} />;
 
   return (
     <div className="flex min-h-dvh">
@@ -104,6 +109,7 @@ export function Shell() {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
+        <OfflineBanner />
         {content}
 
         {/* Mobile tab bar, hidden inside a project */}
@@ -131,30 +137,5 @@ export function Shell() {
         )}
       </div>
     </div>
-  );
-}
-
-function Placeholder({ tab, onLogout }: { tab: Tab; onLogout: () => void }) {
-  return (
-    <>
-      <header className="flex items-end justify-between px-5 pt-6 pb-3 md:px-8 md:pt-8">
-        <h1 className="font-display text-[32px] font-semibold tracking-tight">{tab.label}</h1>
-        <button
-          type="button"
-          onClick={onLogout}
-          aria-label="Sign out"
-          className="flex size-11 items-center justify-center rounded-full border border-line bg-surface md:hidden"
-        >
-          <LogoutIcon width={20} height={20} />
-        </button>
-      </header>
-      <main className="flex-1 px-4 pb-28 md:px-8 md:pb-10">
-        <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-line bg-surface px-6 py-12 text-center">
-          <tab.Icon width={28} height={28} className="text-muted" />
-          <p className="font-semibold">Coming soon</p>
-          <p className="max-w-sm text-sm text-muted">{tab.empty}</p>
-        </div>
-      </main>
-    </>
   );
 }

@@ -254,3 +254,48 @@ export interface ProjectDetail extends ProjectSummary {
   createdAt: string;
   checklists: Checklist[];
 }
+
+export interface ItemWithContext extends ChecklistItem {
+  projectId: string;
+  projectTitle: string;
+  checklistTitle: string;
+  checklistKind: ChecklistKind;
+}
+
+export interface SearchHit {
+  entity: 'project' | 'item' | 'note';
+  entityId: string;
+  projectId: string;
+  projectTitle: string;
+  title: string;
+  snippet: string;
+}
+
+export interface Agenda {
+  today: string;
+  until: string;
+  overdueItems: ItemWithContext[];
+  upcomingItems: ItemWithContext[];
+  lateDeliveries: ItemWithContext[];
+  upcomingDeliveries: ItemWithContext[];
+  overdueProjects: ProjectSummary[];
+  upcomingProjects: ProjectSummary[];
+  urgentProjects: ProjectSummary[];
+  openQuestions: ItemWithContext[];
+}
+
+export interface BuyGroup {
+  key: string;
+  /** Shop or project name; null for items without a shop. */
+  name: string | null;
+  items: ItemWithContext[];
+  /** Preferred-link price × quantity, per currency. */
+  totals: { currency: string; amount: number }[];
+  unpriced: number;
+}
+
+export interface BuyOverview {
+  byShop: BuyGroup[];
+  byProject: BuyGroup[];
+  ordered: ItemWithContext[];
+}

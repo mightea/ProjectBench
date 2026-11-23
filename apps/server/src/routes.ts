@@ -3,6 +3,8 @@ import {
   addItems,
   addLink,
   addNote,
+  agenda,
+  buyOverview,
   createApiToken,
   createChecklist,
   createProject,
@@ -23,6 +25,7 @@ import {
   noteTimeline,
   NotFoundError,
   revokeApiToken,
+  searchAll,
   updateChecklist,
   updateItem,
   updateLink,
@@ -142,6 +145,15 @@ export function apiRoutes(db: Db, files?: FileStore) {
     deleteAttachment(ctx, c.req.param('id'));
     return c.body(null, 204);
   });
+
+  // Daily views
+  api.get('/agenda', (c) => {
+    const days = Number(c.req.query('days') ?? 7);
+    const range = Number.isInteger(days) && days >= 1 && days <= 90 ? days : 7;
+    return c.json(agenda(ctx, range));
+  });
+  api.get('/buy', (c) => c.json(buyOverview(ctx)));
+  api.get('/search', (c) => c.json(searchAll(ctx, c.req.query('q') ?? '')));
 
   // Tags
   api.get('/tags', (c) => c.json(listTags(db)));

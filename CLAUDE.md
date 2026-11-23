@@ -51,6 +51,11 @@ Run `pnpm test` and `pnpm typecheck` before committing; the pre-commit hook runs
 - `sharp`, `heic-decode` and `unpdf` stay external in the server bundle and are installed in the Dockerfile.
 - `add_attachment` URL fetches must keep refusing private addresses (`packages/core/src/fetch-url.ts`).
 
-## Next: phase 5 — daily-use polish
+## Offline reading
 
-Today, Buy and Search screens, and offline reading.
+- Read queries persist to IndexedDB (`apps/web/src/lib/offline.ts`, allowlist of query keys). Never add API tokens to it.
+- Cached data and thumbnails are wiped when the session ends. Writes fail fast offline; they are not queued.
+
+## Next: phase 6 — extras
+
+iCal feed, reminders, export.

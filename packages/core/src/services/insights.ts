@@ -1,17 +1,10 @@
 import { and, asc, eq, inArray, isNotNull, ne, notInArray, sql, type SQL } from 'drizzle-orm';
 import { attachments, checklistItems, checklists, projects } from '../schema.ts';
-import type { ChecklistItem, ChecklistKind, ItemLink, ProjectSummary } from '../schemas.ts';
+import type { Agenda, BuyGroup, BuyOverview, ChecklistItem, ItemLink, ItemWithContext, SearchHit } from '../schemas.ts';
 import type { ServiceContext } from './context.ts';
 import { getItem } from './items.ts';
 import { listNotes } from './notes.ts';
 import { getProject, listProjects } from './projects.ts';
-
-export interface ItemWithContext extends ChecklistItem {
-  projectId: string;
-  projectTitle: string;
-  checklistTitle: string;
-  checklistKind: ChecklistKind;
-}
 
 const openProject = notInArray(projects.status, ['done', 'archived']);
 
@@ -39,15 +32,6 @@ function localDate(date: Date): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
-export interface SearchHit {
-  entity: 'project' | 'item' | 'note';
-  entityId: string;
-  projectId: string;
-  projectTitle: string;
-  title: string;
-  snippet: string;
-}
-
 /** Full-text search across projects, items and notes. Every word must match, as a prefix. */
 export function searchAll(ctx: ServiceContext, query: string, limit = 30): SearchHit[] {
   const terms = query.match(/[\p{L}\p{N}]+/gu);
@@ -63,18 +47,6 @@ export function searchAll(ctx: ServiceContext, query: string, limit = 30): Searc
     order by rank
     limit ${limit}
   `);
-}
-
-export interface Agenda {
-  today: string;
-  until: string;
-  overdueItems: ItemWithContext[];
-  upcomingItems: ItemWithContext[];
-  lateDeliveries: ItemWithContext[];
-  upcomingDeliveries: ItemWithContext[];
-  overdueProjects: ProjectSummary[];
-  upcomingProjects: ProjectSummary[];
-  urgentProjects: ProjectSummary[];
 }
 
 /** What needs attention in the next `days` days, across all open projects. */
@@ -102,6 +74,7 @@ export function agenda(ctx: ServiceContext, days = 7): Agenda {
     overdueProjects: open.filter((p) => p.dueDate !== null && p.dueDate < today),
     upcomingProjects: open.filter((p) => p.dueDate !== null && p.dueDate >= today && p.dueDate <= until),
     urgentProjects: open.filter((p) => p.priority === 1),
+    openQuestions: openQuestions(ctx),
   };
 }
 
@@ -128,6 +101,44 @@ export function shoppingList(ctx: ServiceContext, filter: ShoppingFilter = {}): 
   if (!filter.shop) return items;
   const shop = filter.shop.toLowerCase();
   return items.filter((item) => preferredLink(item)?.shop?.toLowerCase().includes(shop));
+}
+
+/** Adds up preferred-link prices per currency; items without a price are counted instead. */
+function buyGroup(key: string, name: string | null, items: ItemWithContext[]): BuyGroup {
+  const cents = new Map<string, number>();
+  let unpriced = 0;
+  for (const item of items) {
+    const link = preferredLink(item);
+    if (!link || link.price === null) {
+      unpriced += 1;
+      continue;
+    }
+    const currency = link.currency ?? 'CHF';
+    cents.set(currency, (cents.get(currency) ?? 0) + Math.round(link.price * (item.quantity ?? 1) * 100));
+  }
+  const totals = [...cents].map(([currency, amount]) => ({ currency, amount: amount / 100 }));
+  return { key, name, items, totals, unpriced };
+}
+
+function groupBy(items: ItemWithContext[], keyOf: (item: ItemWithContext) => string, nameOf: (item: ItemWithContext) => string | null) {
+  const groups = new Map<string, ItemWithContext[]>();
+  for (const item of items) groups.set(keyOf(item), [...(groups.get(keyOf(item)) ?? []), item]);
+  return [...groups].map(([key, members]) => buyGroup(key, nameOf(members[0]!), members));
+}
+
+/** The Buy screen: what to order, by shop and by project, and what is on the way. */
+export function buyOverview(ctx: ServiceContext): BuyOverview {
+  const items = shoppingList(ctx);
+  const toOrder = items.filter((i) => i.state === 'open');
+  const shopOf = (item: ItemWithContext) => preferredLink(item)?.shop ?? null;
+  const byShop = groupBy(toOrder, (i) => shopOf(i)?.toLowerCase() ?? '', shopOf).sort((a, b) => {
+    if (a.name === null || b.name === null) return a.name === b.name ? 0 : a.name === null ? 1 : -1;
+    return a.name.localeCompare(b.name);
+  });
+  const ordered = items
+    .filter((i) => i.state === 'ordered')
+    .sort((a, b) => (a.expectedDate ?? '9999').localeCompare(b.expectedDate ?? '9999'));
+  return { byShop, byProject: groupBy(toOrder, (i) => i.projectId, (i) => i.projectTitle), ordered };
 }
 
 /** Open "to clarify" items. Without a project, only open projects count. */

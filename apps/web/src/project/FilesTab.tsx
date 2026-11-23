@@ -2,6 +2,7 @@ import type { Attachment } from '@projectbench/core/schemas';
 import { useState } from 'react';
 import { TrashIcon } from '../components/icons.tsx';
 import { Sheet } from '../components/Sheet.tsx';
+import { QueryFallback } from '../components/QueryFallback.tsx';
 import { useAttachments, useNoteMutations } from '../lib/queries.ts';
 import { formatBytes } from '../lib/upload.ts';
 import { FilePickers, FileRow } from './Attachments.tsx';
@@ -27,12 +28,7 @@ export function FilesTab({ projectId }: { projectId: string }) {
           {error.message}
         </p>
       )}
-      {files.isPending && <p className="text-muted">Loading…</p>}
-      {files.isError && (
-        <p role="alert" className="text-danger">
-          {files.error.message}
-        </p>
-      )}
+      {!files.data && <QueryFallback query={files} />}
       {files.data?.length === 0 && (
         <p className="rounded-2xl border border-dashed border-line bg-surface px-5 py-8 text-center text-sm text-muted">
           No files yet. Photos, PDFs, datasheets and STL files will show up here.

@@ -1,7 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { App } from './App.tsx';
+import { setServerReachable } from './lib/connection.ts';
 import { parseItemLine } from './project/ChecklistCard.tsx';
 import { nextState } from './project/ItemRow.tsx';
 
@@ -84,6 +85,20 @@ const project = {
   ],
 };
 
+const emptyAgenda = {
+  today: '2026-11-23',
+  until: '2026-11-30',
+  overdueItems: [],
+  upcomingItems: [],
+  lateDeliveries: [],
+  upcomingDeliveries: [],
+  overdueProjects: [],
+  upcomingProjects: [],
+  urgentProjects: [],
+  openQuestions: [],
+};
+const emptyBuy = { byShop: [], byProject: [], ordered: [] };
+
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
@@ -101,11 +116,84 @@ describe('App', () => {
     expect(await screen.findByRole('button', { name: 'Sign in' })).toBeTruthy();
   });
 
-  it('opens on the projects list', async () => {
-    renderApp(signedIn, { '/api/projects': [project] });
+  it('opens on Today with overdue items and urgent projects', async () => {
+    const overdue = { ...project.checklists[0]!.items[0]!, dueDate: '2020-01-01', projectId: 'p1', projectTitle: project.title, checklistTitle: 'To buy', checklistKind: 'buy' };
+    renderApp(signedIn, {
+      '/api/agenda': { ...emptyAgenda, overdueItems: [overdue], urgentProjects: [project] },
+      '/api/buy': emptyBuy,
+    });
+    expect(await screen.findByRole('heading', { name: 'Today' })).toBeTruthy();
+    expect(await screen.findByRole('link', { name: 'Noctua NF-A4x20 PWM' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Mark as ordered: Noctua NF-A4x20 PWM' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Urgent projects' })).toBeTruthy();
+    expect(window.location.pathname).toBe('/today');
+  });
+
+  it('shows the projects list', async () => {
+    renderApp(signedIn, { '/api/projects': [project] }, '/projects');
     expect(await screen.findByRole('heading', { name: 'Projects' })).toBeTruthy();
     expect(await screen.findByText('Rack fan controller')).toBeTruthy();
-    expect(window.location.pathname).toBe('/projects');
+  });
+
+  it('groups the buy list by shop with totals and switches to projects', async () => {
+    const item = { ...project.checklists[0]!.items[0]!, projectId: 'p1', projectTitle: project.title, checklistTitle: 'To buy', checklistKind: 'buy' };
+    renderApp(
+      signedIn,
+      {
+        '/api/buy': {
+          byShop: [{ key: 'galaxus.ch', name: 'galaxus.ch', items: [item], totals: [{ currency: 'CHF', amount: 63.6 }], unpriced: 0 }],
+          byProject: [{ key: 'p1', name: project.title, items: [item], totals: [{ currency: 'CHF', amount: 63.6 }], unpriced: 0 }],
+          ordered: [],
+        },
+      },
+      '/buy',
+    );
+    const shop = await screen.findByRole('region', { name: 'galaxus.ch' });
+    expect(within(shop).getByText('CHF 63.60')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'By project' }));
+    expect(await screen.findByRole('region', { name: project.title })).toBeTruthy();
+  });
+
+  it('groups search results by type', async () => {
+    renderApp(
+      signedIn,
+      { '/api/search': [{ entity: 'note', entityId: 'n1', projectId: 'p1', projectTitle: project.title, title: '', snippet: 'Fan header pinout' }] },
+      '/search',
+    );
+    fireEvent.change(await screen.findByRole('searchbox'), { target: { value: 'pinout' } });
+    const notes = await screen.findByRole('region', { name: 'Notes' }, { timeout: 2000 });
+    expect(within(notes).getByRole('link', { name: /Fan header pinout/ }).getAttribute('href')).toBe('/projects/p1');
+  });
+
+  it('keeps showing cached data when the server is out of reach', async () => {
+    window.history.replaceState(null, '', '/today');
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    client.setQueryData(['auth'], signedIn);
+    client.setQueryData(['agenda'], { ...emptyAgenda, urgentProjects: [project] });
+    client.setQueryData(['buy'], emptyBuy);
+    render(
+      <QueryClientProvider client={client}>
+        <App />
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByText(/reading the saved copy/)).toBeTruthy();
+    expect(screen.getByText('Rack fan controller')).toBeTruthy();
+    setServerReachable(true);
+  });
+
+  it('removes cached data once signed out', async () => {
+    window.history.replaceState(null, '', '/');
+    vi.stubGlobal('fetch', vi.fn(async () => json({ passwordSet: true, authenticated: false, minPasswordLength: 10 })));
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    client.setQueryData(['project', 'p1'], project);
+    render(
+      <QueryClientProvider client={client}>
+        <App />
+      </QueryClientProvider>,
+    );
+    await screen.findByRole('button', { name: 'Sign in' });
+    await waitFor(() => expect(client.getQueryData(['project', 'p1'])).toBeUndefined());
   });
 
   it('offers to create the first project when the list is empty', async () => {

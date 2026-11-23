@@ -5,6 +5,7 @@ import { PriorityBadge, ProgressBar, progressLabel } from '../components/bits.ts
 import { BackIcon, ChevronDownIcon, DotsIcon, PlusIcon } from '../components/icons.tsx';
 import { Field, inputClass, Sheet } from '../components/Sheet.tsx';
 import { dueTone, dueToneClass, formatDue, PRIORITY_META, STATUS_META } from '../lib/format.ts';
+import { QueryFallback } from '../components/QueryFallback.tsx';
 import { useAttachments, useNotes, useProject, useProjectMutations } from '../lib/queries.ts';
 import { ChecklistCard } from './ChecklistCard.tsx';
 import { ChecklistSheet } from './ChecklistSheet.tsx';
@@ -29,21 +30,24 @@ type Panel =
 export function ProjectScreen({ id, navigate }: { id: string; navigate: (to: string) => void }) {
   const project = useProject(id);
 
-  if (project.isPending) return <p className="p-6 text-muted">Loading…</p>;
-  if (project.isError) {
-    const missing = project.error instanceof ApiError && project.error.status === 404;
-    return (
-      <div className="flex flex-col items-start gap-3 p-6">
+  const missing = project.error instanceof ApiError && project.error.status === 404;
+  // Cached data stays on screen when a refresh fails, unless the project is really gone.
+  if (project.data && !missing) return <ProjectView project={project.data} navigate={navigate} />;
+  if (project.isPending && project.fetchStatus !== 'paused') return <p className="p-6 text-muted">Loading…</p>;
+  return (
+    <div className="flex flex-col items-start gap-3 p-6">
+      {missing ? (
         <p role="alert" className="text-danger">
-          {missing ? 'This project doesn’t exist (any more).' : project.error.message}
+          This project doesn’t exist (any more).
         </p>
-        <a href="/projects" onClick={(e) => (e.preventDefault(), navigate('/projects'))} className="font-semibold text-accent">
-          Back to projects
-        </a>
-      </div>
-    );
-  }
-  return <ProjectView project={project.data} navigate={navigate} />;
+      ) : (
+        <QueryFallback query={project} />
+      )}
+      <a href="/projects" onClick={(e) => (e.preventDefault(), navigate('/projects'))} className="font-semibold text-accent">
+        Back to projects
+      </a>
+    </div>
+  );
 }
 
 function ProjectView({ project: p, navigate }: { project: ProjectDetail; navigate: (to: string) => void }) {

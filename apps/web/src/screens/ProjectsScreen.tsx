@@ -2,6 +2,7 @@ import type { ProjectSummary } from '@projectbench/core/schemas';
 import { useState, type MouseEvent } from 'react';
 import { PriorityBadge, ProgressBar } from '../components/bits.tsx';
 import { PlusIcon, SearchIcon, SettingsIcon } from '../components/icons.tsx';
+import { QueryFallback } from '../components/QueryFallback.tsx';
 import { dueTone, dueToneClass, formatDue, STATUS_META } from '../lib/format.ts';
 import { useProjects } from '../lib/queries.ts';
 import { NewProjectSheet } from './NewProjectSheet.tsx';
@@ -107,12 +108,8 @@ export function ProjectsScreen({ navigate }: { navigate: (to: string) => void })
       </header>
 
       <main className="flex-1 px-4 pb-32 md:px-8 md:pb-10">
-        {projects.isPending ? (
-          <p className="px-1 py-6 text-muted">Loading…</p>
-        ) : projects.isError ? (
-          <p role="alert" className="rounded-xl bg-danger-soft px-4 py-3 text-danger">
-            {projects.error.message}
-          </p>
+        {!projects.data ? (
+          <QueryFallback query={projects} />
         ) : projects.data.length === 0 ? (
           <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-line bg-surface px-6 py-12 text-center">
             <p className="font-semibold">{q || status !== 'open' ? 'No matching projects' : 'No projects yet'}</p>

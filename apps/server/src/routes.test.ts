@@ -1,5 +1,5 @@
 import { openDb } from '@projectbench/core';
-import type { ChecklistItem, ProjectDetail, ProjectSummary } from '@projectbench/core/schemas';
+import type { Agenda, BuyOverview, ChecklistItem, ProjectDetail, ProjectSummary, SearchHit } from '@projectbench/core/schemas';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createApp, SESSION_COOKIE } from './app.ts';
 
@@ -31,6 +31,27 @@ async function call<T = unknown>(method: string, path: string, payload?: unknown
 }
 
 describe('REST API', () => {
+  it('serves the agenda, buy overview and search', async () => {
+    const { data: project } = await call<ProjectDetail>('POST', '/api/projects', { title: 'Rack fan controller', priority: 1 });
+    const { data: list } = await call<{ id: string }>('POST', `/api/projects/${project.id}/checklists`, { title: 'To buy', kind: 'buy' });
+    await call('POST', `/api/checklists/${list.id}/items`, {
+      text: 'Noctua fan',
+      quantity: 2,
+      links: [{ url: 'https://www.galaxus.ch/p/1', price: 15.5 }],
+    });
+
+    const agenda = await call<Agenda>('GET', '/api/agenda?days=not-a-number');
+    expect(agenda.status).toBe(200);
+    expect(agenda.data.urgentProjects.map((p) => p.id)).toEqual([project.id]);
+
+    const buy = await call<BuyOverview>('GET', '/api/buy');
+    expect(buy.data.byShop[0]).toMatchObject({ name: 'galaxus.ch', totals: [{ amount: 31 }] });
+
+    const found = await call<SearchHit[]>('GET', '/api/search?q=noctua');
+    expect(found.data.map((h) => h.entity)).toEqual(['item']);
+    expect((await call<SearchHit[]>('GET', '/api/search')).data).toEqual([]);
+  });
+
   it('requires a session', async () => {
     const res = await app.request('/api/projects');
     expect(res.status).toBe(401);
