@@ -1,9 +1,11 @@
 import type { BuyGroup, BuyOverview, ItemWithContext } from '@projectbench/core/schemas';
 import { useState } from 'react';
 import { QueryFallback } from '../components/QueryFallback.tsx';
+import { TagFilter } from '../components/TagFilter.tsx';
 import { dueTone, dueToneClass, formatDue, formatPrice, formatQuantity } from '../lib/format.ts';
 import { useBuyOverview } from '../lib/queries.ts';
 import { LinkChips } from '../project/ItemRow.tsx';
+import { useTagFilter } from '../useRoute.ts';
 import { appLink, DailyItem, type Navigate } from './DailyItem.tsx';
 
 type Grouping = 'shop' | 'project';
@@ -15,7 +17,8 @@ export function totalLabel(group: Pick<BuyGroup, 'totals' | 'unpriced' | 'items'
 }
 
 export function BuyScreen({ navigate }: { navigate: Navigate }) {
-  const buy = useBuyOverview();
+  const [tag, setTag] = useTagFilter();
+  const buy = useBuyOverview(tag);
   const [grouping, setGrouping] = useState<Grouping>('shop');
   const toOrder = buy.data?.byShop.reduce((n, g) => n + g.items.length, 0) ?? 0;
 
@@ -37,27 +40,28 @@ export function BuyScreen({ navigate }: { navigate: Navigate }) {
               type="button"
               aria-pressed={grouping === g}
               onClick={() => setGrouping(g)}
-              className={`h-11 flex-1 rounded-lg text-sm ${grouping === g ? 'bg-surface font-semibold shadow-sm' : 'font-medium text-[#3F4450]'}`}
+              className={`h-11 flex-1 rounded-lg text-sm ${grouping === g ? 'bg-surface font-semibold shadow-sm' : 'font-medium text-ink-soft'}`}
             >
               By {g}
             </button>
           ))}
         </div>
+        <TagFilter value={tag} onChange={setTag} />
       </header>
-      <main className="flex flex-1 flex-col gap-3.5 px-4 pb-28 md:max-w-3xl md:px-8 md:pb-10">
-        {buy.data ? <BuyLists data={buy.data} grouping={grouping} navigate={navigate} /> : <QueryFallback query={buy} />}
+      <main className="flex flex-1 flex-col gap-3.5 px-4 pb-28 md:px-8 md:pb-10">
+        {buy.data ? <BuyLists data={buy.data} grouping={grouping} tag={tag} navigate={navigate} /> : <QueryFallback query={buy} />}
       </main>
     </>
   );
 }
 
-function BuyLists({ data, grouping, navigate }: { data: BuyOverview; grouping: Grouping; navigate: Navigate }) {
+function BuyLists({ data, grouping, tag, navigate }: { data: BuyOverview; grouping: Grouping; tag: string | null; navigate: Navigate }) {
   const groups = grouping === 'shop' ? data.byShop : data.byProject;
 
   if (groups.length === 0 && data.ordered.length === 0) {
     return (
       <p className="rounded-2xl border border-dashed border-line bg-surface px-6 py-10 text-center text-sm text-muted">
-        Nothing to buy. Items on a “To buy” checklist will show up here.
+        {tag ? `Nothing to buy for #${tag}.` : 'Nothing to buy. Items on a “To buy” checklist will show up here.'}
       </p>
     );
   }
@@ -67,7 +71,7 @@ function BuyLists({ data, grouping, navigate }: { data: BuyOverview; grouping: G
       {data.ordered.length > 0 && (
         <section aria-labelledby="buy-ordered" className="flex flex-col gap-1.5">
           <div className="flex items-baseline justify-between px-1">
-            <h2 id="buy-ordered" className="text-[13px] font-semibold tracking-[0.06em] text-[#8A4B06] uppercase">
+            <h2 id="buy-ordered" className="text-[13px] font-semibold tracking-[0.06em] text-warning-ink uppercase">
               On the way
             </h2>
             <span className="text-xs text-muted">tap to mark received</span>
@@ -91,10 +95,11 @@ function BuyLists({ data, grouping, navigate }: { data: BuyOverview; grouping: G
       )}
 
       {groups.length > 0 && <h2 className="mx-1 mt-1 -mb-1 text-[15px] font-semibold">To order</h2>}
+      <div className="grid gap-3.5 xl:grid-cols-2 xl:items-start">
       {groups.map((group) => (
         <section key={group.key || 'none'} aria-label={group.name ?? 'No shop yet'} className="flex flex-col gap-1.5">
           <div className="flex items-baseline justify-between gap-3 px-1">
-            <h3 className="text-[13px] font-semibold tracking-[0.06em] text-[#3F4450] uppercase">{group.name ?? 'No shop yet'}</h3>
+            <h3 className="text-[13px] font-semibold tracking-[0.06em] text-ink-soft uppercase">{group.name ?? 'No shop yet'}</h3>
             <span className="text-xs whitespace-nowrap text-muted">{totalLabel(group)}</span>
           </div>
           <ul className="overflow-hidden rounded-2xl border border-line bg-surface">
@@ -104,6 +109,7 @@ function BuyLists({ data, grouping, navigate }: { data: BuyOverview; grouping: G
           </ul>
         </section>
       ))}
+      </div>
     </>
   );
 }
@@ -128,7 +134,7 @@ function ToOrderItem({ item, grouping, navigate }: { item: ItemWithContext; grou
       ) : (
         <a
           {...appLink(`/projects/${item.projectId}`, navigate)}
-          className="flex h-[30px] items-center self-start rounded-full border border-dashed border-[#A7ACB8] px-2.5 text-xs font-medium text-[#3F4450]"
+          className="flex h-[30px] items-center self-start rounded-full border border-dashed border-control px-2.5 text-xs font-medium text-ink-soft"
         >
           + Add shop link
         </a>

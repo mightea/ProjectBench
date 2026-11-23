@@ -2,9 +2,10 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { openDb } from '../db.ts';
 import { createChecklist } from './checklists.ts';
 import type { ServiceContext } from './context.ts';
-import { agenda, buyOverview } from './insights.ts';
+import { agenda, buyOverview, searchAll } from './insights.ts';
 import { addItems, updateItem } from './items.ts';
 import { createProject, updateProject } from './projects.ts';
+import { listTags } from './tags.ts';
 
 let ctx: ServiceContext;
 let close: () => void;
@@ -74,5 +75,45 @@ describe('agenda', () => {
     const [, answered] = addItems(ctx, list.id, [{ text: 'Which header?' }, { text: 'Answered' }]);
     updateItem(ctx, answered!.id, { state: 'done' });
     expect(agenda(ctx).openQuestions.map((i) => i.text)).toEqual(['Which header?']);
+  });
+});
+
+describe('tags', () => {
+  it('finds projects by tag, also after the tags change', () => {
+    const p = createProject(ctx, { title: 'Bench lamp', tags: ['home-assistant'] });
+    expect(searchAll(ctx, 'assistant').map((h) => [h.entityId, h.tags])).toEqual([[p.id, ['home-assistant']]]);
+    updateProject(ctx, p.id, { tags: ['workshop'] });
+    expect(searchAll(ctx, 'assistant')).toEqual([]);
+    expect(searchAll(ctx, 'bench workshop').map((h) => h.entityId)).toEqual([p.id]);
+  });
+
+  it('limits search to a #tag and lists its projects when used alone', () => {
+    const tagged = buyList('Rack');
+    const other = buyList('Garage');
+    updateProject(ctx, tagged.project.id, { tags: ['homelab'] });
+    addItems(ctx, tagged.list.id, [{ text: 'Fan' }]);
+    addItems(ctx, other.list.id, [{ text: 'Fan' }]);
+    expect(searchAll(ctx, 'fan')).toHaveLength(2);
+    expect(searchAll(ctx, '#HomeLab fan').map((h) => h.projectId)).toEqual([tagged.project.id]);
+    expect(searchAll(ctx, '#homelab').map((h) => [h.entity, h.entityId])).toEqual([['project', tagged.project.id]]);
+    expect(searchAll(ctx, '#missing')).toEqual([]);
+  });
+
+  it('filters the agenda and buy list by tag', () => {
+    const tagged = buyList('Rack');
+    const other = buyList('Garage');
+    updateProject(ctx, tagged.project.id, { tags: ['homelab'], priority: 1 });
+    updateProject(ctx, other.project.id, { priority: 1 });
+    addItems(ctx, tagged.list.id, [{ text: 'Fan' }]);
+    addItems(ctx, other.list.id, [{ text: 'Hook' }]);
+    expect(buyOverview(ctx, 'homelab').byProject.map((g) => g.name)).toEqual(['Rack']);
+    expect(agenda(ctx, 7, 'homelab').urgentProjects.map((p) => p.title)).toEqual(['Rack']);
+    expect(agenda(ctx).urgentProjects).toHaveLength(2);
+  });
+
+  it('lists only tags that are in use', () => {
+    const p = createProject(ctx, { title: 'Rack', tags: ['old'] });
+    updateProject(ctx, p.id, { tags: ['new'] });
+    expect(listTags(ctx.db)).toEqual([{ name: 'new', projects: 1 }]);
   });
 });

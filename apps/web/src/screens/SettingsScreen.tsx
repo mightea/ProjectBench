@@ -4,6 +4,7 @@ import { useId, useState, type FormEvent } from 'react';
 import { api } from '../api.ts';
 import { LogoutIcon } from '../components/icons.tsx';
 import { inputClass } from '../components/Sheet.tsx';
+import { ThemeToggle } from '../components/ThemeToggle.tsx';
 
 const TOKENS_KEY = ['tokens'] as const;
 
@@ -37,7 +38,7 @@ function Snippet({ title, value }: { title: string; value: string }) {
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center justify-between gap-2">
-        <h3 className="text-[13px] font-semibold text-[#3F4450]">{title}</h3>
+        <h3 className="text-[13px] font-semibold text-ink-soft">{title}</h3>
         <CopyButton value={value} label={`Copy ${title}`} />
       </div>
       <pre className="overflow-x-auto rounded-xl bg-ground p-3 text-xs select-all">{value}</pre>
@@ -91,7 +92,7 @@ function TokenRow({ token, onRevoke, busy }: { token: ApiToken; onRevoke: () => 
               disabled={busy}
               onClick={onRevoke}
               aria-label={`Confirm revoking ${token.name}`}
-              className="h-11 rounded-xl bg-danger px-3 text-sm font-semibold text-white disabled:opacity-60"
+              className="h-11 rounded-xl bg-danger-fill px-3 text-sm font-semibold text-white disabled:opacity-60"
             >
               Revoke now
             </button>
@@ -147,6 +148,11 @@ export function SettingsScreen({ onLogout }: { onLogout: () => void }) {
         </button>
       </header>
       <main className="flex max-w-2xl flex-1 flex-col gap-4 px-4 pb-28 md:px-8 md:pb-10">
+        <section className="flex flex-col gap-2">
+          <h2 className="font-display text-xl font-semibold">Appearance</h2>
+          <ThemeToggle />
+        </section>
+
         <section className="flex flex-col gap-1">
           <h2 className="font-display text-xl font-semibold">Claude access</h2>
           <p className="text-sm text-muted">
@@ -157,7 +163,7 @@ export function SettingsScreen({ onLogout }: { onLogout: () => void }) {
         {created && <NewToken token={created} onDone={() => setCreated(null)} />}
 
         <form onSubmit={submit} className="flex flex-col gap-1.5">
-          <label htmlFor={nameId} className="text-[13px] font-semibold text-[#3F4450]">
+          <label htmlFor={nameId} className="text-[13px] font-semibold text-ink-soft">
             New token name
           </label>
           <div className="flex gap-2">

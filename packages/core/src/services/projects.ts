@@ -216,7 +216,14 @@ export function createProject(ctx: ServiceContext, input: ProjectCreate): Projec
       })
       .run();
     if (data.tags) setProjectTags(tx, id, data.tags);
-    indexSearch(tx, { entity: 'project', entityId: id, projectId: id, title: data.title, body: data.description });
+    indexSearch(tx, {
+      entity: 'project',
+      entityId: id,
+      projectId: id,
+      title: data.title,
+      body: data.description,
+      tags: tagsForProjects(tx, [id]).get(id),
+    });
     logActivity(tx, ctx, { projectId: id, entity: 'project', entityId: id, action: 'create', diff: data });
   });
   return getProject(ctx, id);
@@ -241,13 +248,14 @@ export function updateProject(ctx: ServiceContext, id: string, input: ProjectUpd
     }
     tx.update(projects).set(patch).where(eq(projects.id, id)).run();
     if (tagNames) setProjectTags(tx, id, tagNames);
-    if (fields.title !== undefined || fields.description !== undefined) {
+    if (tagNames || fields.title !== undefined || fields.description !== undefined) {
       indexSearch(tx, {
         entity: 'project',
         entityId: id,
         projectId: id,
         title: fields.title ?? current.title,
         body: fields.description !== undefined ? fields.description : current.description,
+        tags: tagsForProjects(tx, [id]).get(id),
       });
     }
     logActivity(tx, ctx, { projectId: id, entity: 'project', entityId: id, action: 'update', diff: input });

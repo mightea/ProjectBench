@@ -49,7 +49,7 @@ export function FileRow({ attachment: a, onDelete }: { attachment: Attachment; o
     <div className="flex items-center gap-2.5 rounded-[10px] bg-ground py-1 pr-1 pl-2.5">
       <span
         aria-hidden="true"
-        className={`flex size-[34px] flex-none items-center justify-center rounded-lg text-[10px] font-bold ${isPdf ? 'bg-danger-soft text-danger' : 'bg-accent-soft text-[#2448C2]'}`}
+        className={`flex size-[34px] flex-none items-center justify-center rounded-lg text-[10px] font-bold ${isPdf ? 'bg-danger-soft text-danger' : 'bg-accent-soft text-accent-ink'}`}
       >
         {fileBadge(a.filename)}
       </span>

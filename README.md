@@ -4,7 +4,7 @@
 
 A small self-hosted app for personal projects: checklists for things to buy and questions to clarify, notes, photos and files, priorities and due dates. It is built phone-first as an installable web app (PWA), and an MCP server lets Claude read and update projects.
 
-**Status:** phase 5 of 6. You can manage projects and checklists (to buy, to clarify, to do) with shop links, an ordered state and drag-to-reorder, keep a notes timeline with photos and files, and connect Claude through MCP. Today, Buy and Search give a view across all projects, and projects you have opened stay readable offline.
+**Status:** phase 5 done, phase 6 shelved. You can manage projects and checklists (to buy, to clarify, to do) with shop links, an ordered state and drag-to-reorder, keep a notes timeline with photos and files, and connect Claude through MCP. Today, Buy and Search give a view across all projects and can be filtered by tag, projects you have opened stay readable offline, and the app has a light and a dark theme.
 
 ## Stack
 
@@ -124,7 +124,7 @@ Back up the dataset with TrueNAS snapshots, which cover the database and the `fi
 3. **MCP server** ← *done*
 4. **Notes and attachments** ← *done*
 5. **Daily-use polish** (Today, Buy, search, offline reading) ← *done*
-6. Extras (iCal feed, reminders, export)
+6. Extras (iCal feed, reminders, export) ← *shelved*
 
 ## License
 

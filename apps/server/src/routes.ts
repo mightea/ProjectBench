@@ -150,9 +150,9 @@ export function apiRoutes(db: Db, files?: FileStore) {
   api.get('/agenda', (c) => {
     const days = Number(c.req.query('days') ?? 7);
     const range = Number.isInteger(days) && days >= 1 && days <= 90 ? days : 7;
-    return c.json(agenda(ctx, range));
+    return c.json(agenda(ctx, range, c.req.query('tag')));
   });
-  api.get('/buy', (c) => c.json(buyOverview(ctx)));
+  api.get('/buy', (c) => c.json(buyOverview(ctx, c.req.query('tag'))));
   api.get('/search', (c) => c.json(searchAll(ctx, c.req.query('q') ?? '')));
 
   // Tags

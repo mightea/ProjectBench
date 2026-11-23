@@ -24,7 +24,7 @@ export function ProgressBar({ progress, className = 'h-1.5' }: { progress: Progr
       aria-label={`${progress.done} of ${progress.total} done`}
     >
       <div className="bg-accent" style={{ width: pct(progress.done) }} />
-      <div className="bg-[#E0A458]" style={{ width: pct(progress.ordered) }} />
+      <div className="bg-ordered" style={{ width: pct(progress.ordered) }} />
     </div>
   );
 }

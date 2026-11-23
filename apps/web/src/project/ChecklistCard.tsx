@@ -113,7 +113,7 @@ export function ChecklistCard({ checklist, onAddItems, onToggle, onMove, onOpenI
         </SortableContext>
       </DndContext>
 
-      <form onSubmit={submit} className={`flex h-12 items-center gap-2.5 px-3.5 text-accent ${checklist.items.length ? 'border-t border-line-soft' : ''}`}>
+      <form onSubmit={submit} className={`flex h-12 items-center gap-2.5 px-3.5 text-accent-ink ${checklist.items.length ? 'border-t border-line-soft' : ''}`}>
         <PlusIcon width={20} height={20} aria-hidden="true" />
         <label htmlFor={inputId} className="sr-only">
           Add item to {checklist.title}
@@ -125,7 +125,7 @@ export function ChecklistCard({ checklist, onAddItems, onToggle, onMove, onOpenI
           onPaste={onPaste}
           enterKeyHint="enter"
           placeholder={checklist.kind === 'buy' ? 'Add item, e.g. 3x M3 screws' : checklist.kind === 'clarify' ? 'Add a question' : 'Add a step'}
-          className="min-w-0 flex-1 bg-transparent text-[15px] text-ink outline-none placeholder:text-[#6B7180]"
+          className="min-w-0 flex-1 bg-transparent text-[15px] text-ink outline-none placeholder:text-faint"
         />
       </form>
     </section>

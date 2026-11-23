@@ -5,6 +5,9 @@ import { createRoot } from 'react-dom/client';
 import { App } from './App.tsx';
 import './index.css';
 import { CACHE_GC_TIME, persistOptions } from './lib/offline.ts';
+import { initTheme } from './lib/theme.ts';
+
+initTheme();
 
 const queryClient = new QueryClient({
   defaultOptions: {

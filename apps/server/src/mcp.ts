@@ -192,8 +192,11 @@ export function createMcpServer(db: Db, files?: FileStore): McpServer {
     'search',
     {
       title: 'Search',
-      description: 'Full-text search across projects, checklist items and notes.',
-      inputSchema: { query: z.string().min(1).max(200), limit: z.number().int().min(1).max(100).optional() },
+      description: 'Full-text search across projects (including their tags), checklist items and notes.',
+      inputSchema: {
+        query: z.string().min(1).max(200).describe('Words to find. #tag limits results to projects with that tag.'),
+        limit: z.number().int().min(1).max(100).optional(),
+      },
       annotations: READ_ONLY,
     },
     ({ query, limit }) => run(() => json(searchAll(ctx, query, limit))),
@@ -204,12 +207,15 @@ export function createMcpServer(db: Db, files?: FileStore): McpServer {
     {
       title: 'Agenda',
       description: 'Overdue and upcoming items, projects and deliveries, plus urgent projects.',
-      inputSchema: { days: z.number().int().min(1).max(365).optional().describe('Days to look ahead. Defaults to 7.') },
+      inputSchema: {
+        days: z.number().int().min(1).max(365).optional().describe('Days to look ahead. Defaults to 7.'),
+        tag: z.string().optional().describe('Only projects with this tag'),
+      },
       annotations: READ_ONLY,
     },
-    ({ days }) =>
+    ({ days, tag }) =>
       run(() => {
-        const a = agenda(ctx, days);
+        const a = agenda(ctx, days, tag);
         const project = (p: (typeof a.urgentProjects)[number]) => ({
           id: p.id,
           title: p.title,
@@ -241,11 +247,12 @@ export function createMcpServer(db: Db, files?: FileStore): McpServer {
         state: z.enum(['open', 'ordered']).optional().describe('open = still to buy, ordered = on its way. Defaults to both.'),
         shop: z.string().optional().describe("Text in the preferred link's shop name"),
         project: projectRef.optional(),
+        tag: z.string().optional().describe('Only projects with this tag'),
       },
       annotations: READ_ONLY,
     },
-    ({ state, shop, project }) =>
-      run(() => json(shoppingList(ctx, { state, shop, projectId: project ? resolveProject(ctx, project).id : undefined }).map(brief))),
+    ({ state, shop, project, tag }) =>
+      run(() => json(shoppingList(ctx, { state, shop, tag, projectId: project ? resolveProject(ctx, project).id : undefined }).map(brief))),
   );
 
   server.registerTool(

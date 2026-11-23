@@ -2,8 +2,10 @@ import type { Agenda, ItemWithContext, ProjectSummary } from '@projectbench/core
 import { PriorityBadge, ProgressBar, progressLabel } from '../components/bits.tsx';
 import { SettingsIcon } from '../components/icons.tsx';
 import { QueryFallback } from '../components/QueryFallback.tsx';
+import { TagFilter } from '../components/TagFilter.tsx';
 import { dueTone, dueToneClass, formatDue, KIND_META } from '../lib/format.ts';
 import { useAgenda, useBuyOverview } from '../lib/queries.ts';
+import { useTagFilter } from '../useRoute.ts';
 import { appLink, DailyItem, type Navigate } from './DailyItem.tsx';
 
 const longDate = new Intl.DateTimeFormat('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
@@ -16,8 +18,9 @@ function mergeItems(due: ItemWithContext[], deliveries: ItemWithContext[]) {
 }
 
 export function TodayScreen({ navigate }: { navigate: Navigate }) {
-  const agenda = useAgenda();
-  const buy = useBuyOverview();
+  const [tag, setTag] = useTagFilter();
+  const agenda = useAgenda(tag);
+  const buy = useBuyOverview(tag);
   const toBuy = buy.data?.byShop.reduce((n, g) => n + g.items.length, 0);
 
   return (
@@ -31,14 +34,17 @@ export function TodayScreen({ navigate }: { navigate: Navigate }) {
           <SettingsIcon width={20} height={20} />
         </a>
       </header>
+      <div className="px-5 pb-3 md:px-8">
+        <TagFilter value={tag} onChange={setTag} />
+      </div>
       <main className="flex flex-1 flex-col gap-5 px-4 pb-28 md:px-8 md:pb-10">
-        {agenda.data ? <AgendaView agenda={agenda.data} toBuy={toBuy} navigate={navigate} /> : <QueryFallback query={agenda} />}
+        {agenda.data ? <AgendaView agenda={agenda.data} toBuy={toBuy} tag={tag} navigate={navigate} /> : <QueryFallback query={agenda} />}
       </main>
     </>
   );
 }
 
-function AgendaView({ agenda: a, toBuy, navigate }: { agenda: Agenda; toBuy: number | undefined; navigate: Navigate }) {
+function AgendaView({ agenda: a, toBuy, tag, navigate }: { agenda: Agenda; toBuy: number | undefined; tag: string | null; navigate: Navigate }) {
   const overdue = mergeItems(a.overdueItems, a.lateDeliveries);
   const overdueIds = new Set(overdue.map((o) => o.item.id));
   const week = mergeItems(a.upcomingItems, a.upcomingDeliveries).filter((w) => !overdueIds.has(w.item.id));
@@ -59,10 +65,13 @@ function AgendaView({ agenda: a, toBuy, navigate }: { agenda: Agenda; toBuy: num
 
       {nothing && (
         <p className="rounded-2xl border border-dashed border-line bg-surface px-6 py-10 text-center text-sm text-muted">
-          Nothing due this week and no urgent projects.
+          {tag ? `Nothing due this week for #${tag}.` : 'Nothing due this week and no urgent projects.'}
         </p>
       )}
 
+      <div className={`grid gap-5 lg:items-start ${overdueCount + weekCount > 0 && a.urgentProjects.length > 0 ? 'lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]' : ''}`}>
+      {overdueCount + weekCount > 0 && (
+      <div className="flex min-w-0 flex-col gap-5">
       {overdueCount > 0 && (
         <Section title="Overdue" danger>
           {overdue.map(({ item, date }) => (
@@ -84,13 +93,15 @@ function AgendaView({ agenda: a, toBuy, navigate }: { agenda: Agenda; toBuy: num
           ))}
         </Section>
       )}
+      </div>
+      )}
 
       {a.urgentProjects.length > 0 && (
         <section className="flex flex-col gap-2">
           <SectionTitle>Urgent projects</SectionTitle>
-          <div className="grid grid-cols-2 gap-2.5 xl:grid-cols-3">
+          <div className={`grid grid-cols-2 gap-2.5 ${overdueCount + weekCount > 0 ? 'lg:grid-cols-1' : 'lg:grid-cols-3 xl:grid-cols-4'}`}>
             {a.urgentProjects.map((p) => (
-              <a key={p.id} {...appLink(`/projects/${p.id}`, navigate)} className="flex flex-col gap-2.5 rounded-2xl border border-line bg-surface p-3.5 hover:border-[#C9CDD6]">
+              <a key={p.id} {...appLink(`/projects/${p.id}`, navigate)} className="flex flex-col gap-2.5 rounded-2xl border border-line bg-surface p-3.5 hover:border-line-strong">
                 <span className="flex items-center justify-between gap-2">
                   <PriorityBadge priority={p.priority} />
                   {p.dueDate && <span className={`text-xs whitespace-nowrap ${dueToneClass[dueTone(p.dueDate)]}`}>{formatDue(p.dueDate)}</span>}
@@ -105,6 +116,7 @@ function AgendaView({ agenda: a, toBuy, navigate }: { agenda: Agenda; toBuy: num
           </div>
         </section>
       )}
+      </div>
     </>
   );
 }
@@ -113,7 +125,7 @@ function Stat({ value, label, danger = false }: { value: number | string; label:
   return (
     <div className={`flex h-full flex-col gap-0.5 rounded-xl px-3 py-2.5 ${danger ? 'bg-danger-soft' : 'border border-line bg-surface'}`}>
       <span className={`font-display text-[22px] font-semibold ${danger ? 'text-danger' : ''}`}>{value}</span>
-      <span className={`text-xs font-medium ${danger ? 'text-[#8E1C13]' : 'text-muted'}`}>{label}</span>
+      <span className={`text-xs font-medium ${danger ? 'text-danger-ink' : 'text-muted'}`}>{label}</span>
     </div>
   );
 }

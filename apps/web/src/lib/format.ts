@@ -50,23 +50,23 @@ export const dueToneClass: Record<DueTone, string> = {
 
 export const PRIORITY_META: Record<number, { short: string; label: string; className: string }> = {
   1: { short: 'P1', label: 'Urgent', className: 'bg-danger-soft text-danger' },
-  2: { short: 'P2', label: 'High', className: 'bg-warning-soft text-[#8A4B06]' },
-  3: { short: 'P3', label: 'Normal', className: 'bg-accent-soft text-[#2448C2]' },
-  4: { short: 'P4', label: 'Someday', className: 'bg-line-soft text-[#4B5160]' },
+  2: { short: 'P2', label: 'High', className: 'bg-warning-soft text-warning-ink' },
+  3: { short: 'P3', label: 'Normal', className: 'bg-accent-soft text-accent-ink' },
+  4: { short: 'P4', label: 'Someday', className: 'bg-line-soft text-ink-soft' },
 };
 
 export const STATUS_META: Record<ProjectStatus, { label: string; dot: string }> = {
-  idea: { label: 'Idea', dot: 'bg-[#8B5CF6]' },
-  planned: { label: 'Planned', dot: 'bg-[#A7ACB8]' },
+  idea: { label: 'Idea', dot: 'bg-status-idea' },
+  planned: { label: 'Planned', dot: 'bg-control' },
   active: { label: 'Active', dot: 'bg-success' },
   waiting: { label: 'Waiting', dot: 'bg-warning' },
   done: { label: 'Done', dot: 'bg-accent' },
-  archived: { label: 'Archived', dot: 'bg-[#6B7180]' },
+  archived: { label: 'Archived', dot: 'bg-faint' },
 };
 
 export const KIND_META: Record<ChecklistKind, { label: string; defaultTitle: string; iconClass: string }> = {
-  buy: { label: 'To buy', defaultTitle: 'To buy', iconClass: 'bg-accent-soft text-[#2448C2]' },
-  clarify: { label: 'To clarify', defaultTitle: 'To clarify', iconClass: 'bg-warning-soft text-[#8A4B06]' },
+  buy: { label: 'To buy', defaultTitle: 'To buy', iconClass: 'bg-accent-soft text-accent-ink' },
+  clarify: { label: 'To clarify', defaultTitle: 'To clarify', iconClass: 'bg-warning-soft text-warning-ink' },
   todo: { label: 'To do', defaultTitle: 'To do', iconClass: 'bg-success-soft text-success' },
 };
 

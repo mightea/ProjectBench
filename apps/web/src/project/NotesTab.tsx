@@ -66,12 +66,12 @@ function NoteCard({ note: n, onMore }: { note: Note; onMore: () => void }) {
       <div className="flex items-center gap-1.5 text-xs text-muted">
         {n.pinned && (
           <>
-            <PinIcon width={14} height={14} className="text-accent" />
-            <span className="font-semibold text-accent">Pinned</span>
+            <PinIcon width={14} height={14} className="text-accent-ink" />
+            <span className="font-semibold text-accent-ink">Pinned</span>
             <span aria-hidden="true">·</span>
           </>
         )}
-        {n.source === 'mcp' && <span className="rounded-md bg-[#F1E8FB] px-1.5 py-0.5 text-[11px] font-semibold text-[#6B35A8]">via Claude</span>}
+        {n.source === 'mcp' && <span className="rounded-md bg-claude-soft px-1.5 py-0.5 text-[11px] font-semibold text-claude">via Claude</span>}
         <time dateTime={n.createdAt}>{formatTimestamp(n.createdAt)}</time>
         <button type="button" onClick={onMore} aria-label="Note actions" className="ml-auto flex size-11 items-center justify-center rounded-full text-muted hover:bg-ground">
           <DotsIcon width={18} height={18} />
@@ -189,7 +189,7 @@ function NoteSheet({
           {note.pinned ? 'Unpin note' : 'Pin to top'}
         </button>
         {confirm ? (
-          <button type="button" onClick={() => (onDelete(), onClose())} className="h-12 rounded-xl bg-danger text-[15px] font-semibold text-white">
+          <button type="button" onClick={() => (onDelete(), onClose())} className="h-12 rounded-xl bg-danger-fill text-[15px] font-semibold text-white">
             Delete note permanently
           </button>
         ) : (

@@ -157,7 +157,7 @@ describe('App', () => {
   it('groups search results by type', async () => {
     renderApp(
       signedIn,
-      { '/api/search': [{ entity: 'note', entityId: 'n1', projectId: 'p1', projectTitle: project.title, title: '', snippet: 'Fan header pinout' }] },
+      { '/api/search': [{ entity: 'note', entityId: 'n1', projectId: 'p1', projectTitle: project.title, tags: [], title: '', snippet: 'Fan header pinout' }] },
       '/search',
     );
     fireEvent.change(await screen.findByRole('searchbox'), { target: { value: 'pinout' } });
@@ -212,6 +212,26 @@ describe('App', () => {
     expect(within(list).getByText('Ordered · #8142')).toBeTruthy();
     expect(within(list).getByRole('button', { name: 'Mark as ordered: Noctua NF-A4x20 PWM' })).toBeTruthy();
     expect(within(list).getByRole('button', { name: 'Mark as received: JST-XH kit' })).toBeTruthy();
+  });
+
+  it('edits due date and tags from the project panel', async () => {
+    renderApp(signedIn, { '/api/projects/p1': project, '/api/tags': [{ name: 'homelab', projects: 1 }] }, '/projects/p1');
+    const panel = await screen.findByRole('complementary', { name: 'Project details' });
+    const patches = () =>
+      vi.mocked(fetch).mock.calls.filter(([, init]) => init?.method === 'PATCH').map(([, init]) => JSON.parse(String(init!.body)));
+    fireEvent.change(within(panel).getByLabelText('Due date'), { target: { value: '2027-03-01' } });
+    await waitFor(() => expect(patches()).toContainEqual({ dueDate: '2027-03-01' }));
+    const tags = within(panel).getByLabelText('Tags');
+    fireEvent.change(tags, { target: { value: 'Rack Parts' } });
+    fireEvent.keyDown(tags, { key: 'Enter' });
+    await waitFor(() => expect(patches()).toContainEqual({ tags: ['homelab', 'rack-parts'] }));
+  });
+
+  it('filters projects by the tag in the URL', async () => {
+    renderApp(signedIn, { '/api/projects': [project], '/api/tags': [{ name: 'homelab', projects: 1 }] }, '/projects?tag=homelab');
+    await screen.findByText('Rack fan controller');
+    expect(vi.mocked(fetch).mock.calls.some(([url]) => String(url).includes('/api/projects?') && String(url).includes('tag=homelab'))).toBe(true);
+    expect((await screen.findByRole('button', { name: '#homelab' })).getAttribute('aria-pressed')).toBe('true');
   });
 });
 
