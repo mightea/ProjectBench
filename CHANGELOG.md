@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026.11.6](https://github.com/mightea/ProjectBench/compare/2026.11.5...2026.11.6) (2026-11-23)
+
+
+### ✨ Features
+
+* set project color and icon through MCP ([#14](https://github.com/mightea/ProjectBench/issues/14)) ([c10e85d](https://github.com/mightea/ProjectBench/commit/c10e85d9ef0635d1874e56d344e10e20496191a5))
+
 ## [2026.11.5](https://github.com/mightea/ProjectBench/compare/2026.11.4...2026.11.5) (2026-11-23)
 
 
