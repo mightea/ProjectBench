@@ -4,7 +4,7 @@
 
 A small self-hosted app for personal projects: checklists for things to buy and questions to clarify, notes, photos and files, priorities and due dates. It is built phone-first as an installable web app (PWA), and an MCP server lets Claude read and update projects.
 
-**Status:** phase 3 of 6. You can manage projects and checklists (to buy, to clarify, to do) with shop links, an ordered state and drag-to-reorder, and connect Claude through MCP. Notes and attachments in the app come in phase 4.
+**Status:** phase 4 of 6. You can manage projects and checklists (to buy, to clarify, to do) with shop links, an ordered state and drag-to-reorder, keep a notes timeline with photos and files, and connect Claude through MCP. Daily-use polish comes in phase 5.
 
 ## Stack
 
@@ -49,7 +49,7 @@ Migrations run automatically when the server starts.
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `DATA_DIR` | `./data` | Folder for `projectbench.db` (and later uploaded files) |
+| `DATA_DIR` | `./data` | Folder for `projectbench.db` and uploaded files (`files/`) |
 | `PORT` | `8787` | HTTP port |
 | `PUBLIC_URL` | `http://localhost:8787` | Public address; an `https://` URL turns on Secure cookies |
 | `INITIAL_PASSWORD` | – | Sets the login password on first start instead of the setup screen |
@@ -82,7 +82,7 @@ Clients that need stdio, such as Claude Desktop, can use the bridge after `pnpm 
 }
 ```
 
-Tools: `list_projects`, `get_project`, `create_project`, `update_project`, `add_items`, `update_item`, `set_item_links`, `add_note`, `search`, `agenda`, `shopping_list` and `open_questions`. Projects can be named by id or title. Claude can't delete projects, checklists or items, and its changes are logged with the actor `mcp`.
+Tools: `list_projects`, `get_project`, `create_project`, `update_project`, `add_items`, `update_item`, `set_item_links`, `add_note`, `get_attachment`, `add_attachment`, `search`, `agenda`, `shopping_list` and `open_questions`. Projects can be named by id or title. Claude can't delete projects, checklists, items or files, and its changes are logged with the actor `mcp`. `add_attachment` takes base64 or a public URL; it refuses private and local network addresses.
 
 A custom connector in the Claude phone app needs public HTTPS and OAuth, which ProjectBench doesn't offer yet.
 
@@ -115,14 +115,14 @@ docker buildx build --platform linux/amd64 -t projectbench:latest --load .
 docker save projectbench:latest | ssh root@truenas.example.com docker load
 ```
 
-Back up the dataset with TrueNAS snapshots. A safe copy of the database while the app runs: `sqlite3 projectbench.db ".backup backup.db"`.
+Back up the dataset with TrueNAS snapshots, which cover the database and the `files/` folder together. A safe copy of the database while the app runs: `sqlite3 projectbench.db ".backup backup.db"`.
 
 ## Roadmap
 
 1. **Skeleton** – schema, server, login, PWA shell, Docker ← *done*
 2. **Projects and checklists** ← *done*
 3. **MCP server** ← *done*
-4. Notes and attachments
+4. **Notes and attachments** ← *done*
 5. Daily-use polish (Today, Buy, search, offline reading)
 6. Extras (iCal feed, reminders, export)
 

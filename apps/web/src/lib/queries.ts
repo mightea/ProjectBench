@@ -1,4 +1,5 @@
 import type {
+  Attachment,
   Checklist,
   ChecklistCreate,
   ChecklistItem,
@@ -7,6 +8,8 @@ import type {
   ItemUpdate,
   LinkCreate,
   LinkUpdate,
+  Note,
+  NoteUpdate,
   ProjectCreate,
   ProjectDetail,
   ProjectSummary,
@@ -14,6 +17,7 @@ import type {
 } from '@projectbench/core/schemas';
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { api } from '../api.ts';
+import { prepareUpload } from './upload.ts';
 
 export interface ProjectFilters {
   status?: string;
@@ -200,6 +204,86 @@ export function useProjectMutations(projectId: string) {
     updateLink,
     deleteLink,
   };
+}
+
+const notesKey = (projectId: string) => ['project', projectId, 'notes'] as const;
+const filesKey = (projectId: string) => ['project', projectId, 'attachments'] as const;
+
+export function useNotes(projectId: string) {
+  return useQuery({ queryKey: notesKey(projectId), queryFn: () => api.get<Note[]>(`/api/projects/${projectId}/notes`) });
+}
+
+export function useAttachments(projectId: string) {
+  return useQuery({ queryKey: filesKey(projectId), queryFn: () => api.get<Attachment[]>(`/api/projects/${projectId}/attachments`) });
+}
+
+export interface UploadInput {
+  files: File[];
+  noteId?: string;
+  itemId?: string;
+}
+
+/** Some files of an upload failed; the others are stored. */
+export class UploadError extends Error {
+  constructor(
+    message: string,
+    public readonly failed: File[],
+  ) {
+    super(message);
+  }
+}
+
+/** Uploads one file after the other, so one failure doesn't lose the rest. */
+async function uploadFiles(projectId: string, { files, noteId, itemId }: UploadInput): Promise<Attachment[]> {
+  const done: Attachment[] = [];
+  const failed: File[] = [];
+  let reason = '';
+  for (const original of files) {
+    try {
+      const file = await prepareUpload(original);
+      const form = new FormData();
+      form.append('file', file, file.name);
+      if (noteId) form.append('note_id', noteId);
+      if (itemId) form.append('item_id', itemId);
+      done.push(await api.upload<Attachment>(`/api/projects/${projectId}/attachments`, form));
+    } catch (err) {
+      failed.push(original);
+      reason = err instanceof Error ? err.message : 'Upload failed';
+    }
+  }
+  if (failed.length) throw new UploadError(`${failed.map((f) => f.name).join(', ')}: ${reason}`, failed);
+  return done;
+}
+
+export function useNoteMutations(projectId: string) {
+  const qc = useQueryClient();
+  const refreshAll = () => {
+    void qc.invalidateQueries({ queryKey: notesKey(projectId) });
+    void qc.invalidateQueries({ queryKey: filesKey(projectId) });
+    void qc.invalidateQueries({ queryKey: ['projects'] });
+  };
+
+  const upload = useMutation({ mutationFn: (input: UploadInput) => uploadFiles(projectId, input), onSettled: refreshAll });
+
+  /** Posts a note and its files. A note without text gets a short description of what was added. */
+  const postNote = useMutation({
+    mutationFn: async ({ body, files }: { body: string; files: File[] }) => {
+      const text = body.trim() || `Added ${files.length === 1 ? 'a file' : `${files.length} files`}`;
+      const note = await api.post<Note>(`/api/projects/${projectId}/notes`, { body: text });
+      if (files.length) await uploadFiles(projectId, { files, noteId: note.id });
+      return note;
+    },
+    onSettled: refreshAll,
+  });
+
+  const updateNote = useMutation({
+    mutationFn: ({ id, ...patch }: NoteUpdate & { id: string }) => api.patch<Note>(`/api/notes/${id}`, patch),
+    onSettled: refreshAll,
+  });
+  const deleteNote = useMutation({ mutationFn: (id: string) => api.delete(`/api/notes/${id}`), onSettled: refreshAll });
+  const deleteAttachment = useMutation({ mutationFn: (id: string) => api.delete(`/api/attachments/${id}`), onSettled: refreshAll });
+
+  return { upload, postNote, updateNote, deleteNote, deleteAttachment };
 }
 
 export function useCreateProject() {

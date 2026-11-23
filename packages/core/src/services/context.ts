@@ -1,6 +1,7 @@
 import { and, eq, sql } from 'drizzle-orm';
 import { generateKeyBetween } from 'fractional-indexing';
 import type { Db } from '../db.ts';
+import type { FileStore } from '../files.ts';
 import { newId } from '../ids.ts';
 import { activity } from '../schema.ts';
 
@@ -11,6 +12,8 @@ export interface ServiceContext {
   db: Db;
   /** Who made the change; shown in the activity log. */
   actor: 'app' | 'mcp';
+  /** Where uploaded files live. Attachments are unavailable without it. */
+  files?: FileStore;
   /** Injectable clock for tests. */
   now?: () => Date;
 }

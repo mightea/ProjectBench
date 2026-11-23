@@ -6,7 +6,9 @@ import {
   checkPassword,
   createSession,
   deleteSession,
+  FileStore,
   hasPassword,
+  MAX_UPLOAD_BYTES,
   MIN_PASSWORD_LENGTH,
   SESSION_TTL_DAYS,
   setPassword,
@@ -22,6 +24,7 @@ import { csrf } from 'hono/csrf';
 import { secureHeaders } from 'hono/secure-headers';
 import { z } from 'zod';
 import { VERSION, type Config } from './config.ts';
+import { fileRoutes } from './files.ts';
 import { handleMcpRequest } from './mcp.ts';
 import { FailureLimiter } from './rate-limit.ts';
 import { apiRoutes } from './routes.ts';
@@ -32,15 +35,31 @@ const passwordBody = z.object({ password: z.string().min(1).max(512) });
 
 export interface AppDeps {
   db: Db;
-  config: Pick<Config, 'secureCookies' | 'webDist'>;
+  config: Pick<Config, 'secureCookies' | 'webDist'> & Partial<Pick<Config, 'filesDir' | 'publicUrl'>>;
   limiter?: FailureLimiter;
 }
 
 export function createApp({ db, config, limiter = new FailureLimiter() }: AppDeps) {
   const app = new Hono();
+  const files = config.filesDir ? new FileStore(config.filesDir) : undefined;
+  const publicOrigin = config.publicUrl ? new URL(config.publicUrl).origin : undefined;
 
   app.use(secureHeaders({ contentSecurityPolicy: undefined }));
-  app.use('/api/*', csrf());
+  // Uploads are multipart forms, which this checks. Behind a TLS proxy the server sees plain http,
+  // so the browser's origin is compared by host, or with the configured public address.
+  app.use(
+    '/api/*',
+    csrf({
+      origin: (origin, c) => {
+        if (origin === publicOrigin) return true;
+        try {
+          return new URL(origin).host === c.req.header('host');
+        } catch {
+          return false;
+        }
+      },
+    }),
+  );
 
   const clientKey = (c: Context) => {
     const forwarded = c.req.header('x-forwarded-for')?.split(',')[0]?.trim();
@@ -121,9 +140,18 @@ export function createApp({ db, config, limiter = new FailureLimiter() }: AppDep
   });
 
   app.get('/api/session', (c) => c.json({ authenticated: true }));
-  app.route('/api', apiRoutes(db));
+  app.route('/api', apiRoutes(db, files));
 
   app.all('/api/*', (c) => c.json({ error: 'Not found' }, 404));
+
+  // --- Uploaded files: same session as the app --------------------------------
+
+  app.use('/files/*', async (c, next) => {
+    if (!isAuthenticated(c)) return c.json({ error: 'Not signed in' }, 401);
+    await next();
+  });
+  app.route('/files', fileRoutes({ db, actor: 'app', files }));
+  app.all('/files/*', (c) => c.json({ error: 'Not found' }, 404));
 
   // --- MCP: bearer token only, session cookies are not accepted ----------------
 
@@ -137,8 +165,9 @@ export function createApp({ db, config, limiter = new FailureLimiter() }: AppDep
   });
   app.post(
     '/mcp',
-    bodyLimit({ maxSize: 2 * 1024 * 1024, onError: (c) => c.json({ error: 'Request too large' }, 413) }),
-    (c) => handleMcpRequest(db, c.req.raw),
+    // add_attachment can carry a 50 MB file as base64.
+    bodyLimit({ maxSize: Math.ceil((MAX_UPLOAD_BYTES * 4) / 3) + 1024 * 1024, onError: (c) => c.json({ error: 'Request too large' }, 413) }),
+    (c) => handleMcpRequest(db, c.req.raw, files),
   );
   // Stateless server: no event stream to open and no session to end.
   app.all('/mcp', (c) => {

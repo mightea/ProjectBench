@@ -14,6 +14,16 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     headers: { 'content-type': 'application/json', accept: 'application/json' },
     body: body === undefined ? (method === 'GET' || method === 'DELETE' ? undefined : '{}') : JSON.stringify(body),
   });
+  return parse<T>(res);
+}
+
+/** Sends a multipart form; the browser sets the content type and boundary. */
+async function upload<T>(path: string, form: FormData): Promise<T> {
+  const res = await fetch(path, { method: 'POST', credentials: 'same-origin', headers: { accept: 'application/json' }, body: form });
+  return parse<T>(res);
+}
+
+async function parse<T>(res: Response): Promise<T> {
   if (res.status === 204) return undefined as T;
   const data = (await res.json().catch(() => ({}))) as { error?: string; issues?: { path: string; message: string }[] };
   if (!res.ok) {
@@ -28,6 +38,7 @@ export const api = {
   post: <T>(path: string, body?: unknown) => request<T>('POST', path, body),
   patch: <T>(path: string, body?: unknown) => request<T>('PATCH', path, body),
   delete: (path: string) => request<void>('DELETE', path),
+  upload,
 };
 
 export interface AuthState {

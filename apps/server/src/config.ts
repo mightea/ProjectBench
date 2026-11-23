@@ -15,6 +15,7 @@ export interface Config {
   port: number;
   dataDir: string;
   dbFile: string;
+  filesDir: string;
   publicUrl: string;
   secureCookies: boolean;
   webDist: string;
@@ -31,6 +32,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     port: Number(env.PORT ?? 8787),
     dataDir,
     dbFile: resolve(dataDir, 'projectbench.db'),
+    filesDir: resolve(dataDir, 'files'),
     publicUrl,
     secureCookies: publicUrl.startsWith('https://'),
     webDist: resolve(env.WEB_DIST ?? resolve(here, '../../web/dist')),

@@ -5,10 +5,19 @@ import { PriorityBadge, ProgressBar, progressLabel } from '../components/bits.ts
 import { BackIcon, ChevronDownIcon, DotsIcon, PlusIcon } from '../components/icons.tsx';
 import { Field, inputClass, Sheet } from '../components/Sheet.tsx';
 import { dueTone, dueToneClass, formatDue, PRIORITY_META, STATUS_META } from '../lib/format.ts';
-import { useProject, useProjectMutations } from '../lib/queries.ts';
+import { useAttachments, useNotes, useProject, useProjectMutations } from '../lib/queries.ts';
 import { ChecklistCard } from './ChecklistCard.tsx';
 import { ChecklistSheet } from './ChecklistSheet.tsx';
+import { FilesTab } from './FilesTab.tsx';
 import { ItemSheet } from './ItemSheet.tsx';
+import { NotesTab } from './NotesTab.tsx';
+
+const TABS = [
+  { id: 'checklists', label: 'Checklists' },
+  { id: 'notes', label: 'Notes' },
+  { id: 'files', label: 'Files' },
+] as const;
+type TabId = (typeof TABS)[number]['id'];
 
 type Panel =
   | { type: 'item'; id: string }
@@ -39,6 +48,9 @@ export function ProjectScreen({ id, navigate }: { id: string; navigate: (to: str
 
 function ProjectView({ project: p, navigate }: { project: ProjectDetail; navigate: (to: string) => void }) {
   const m = useProjectMutations(p.id);
+  const notes = useNotes(p.id);
+  const files = useAttachments(p.id);
+  const [tab, setTab] = useState<TabId>('checklists');
   const [panel, setPanel] = useState<Panel | null>(null);
   const close = () => setPanel(null);
   const statusId = useId();
@@ -164,8 +176,32 @@ function ProjectView({ project: p, navigate }: { project: ProjectDetail; navigat
             <span className="text-xs whitespace-nowrap text-muted">{progressLabel(p.progress)}</span>
           </div>
         </div>
+
+        <div role="tablist" aria-label="Project sections" className="flex px-3 md:px-6">
+          {TABS.map((t) => {
+            const count = t.id === 'notes' ? notes.data?.length : t.id === 'files' ? files.data?.length : undefined;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                role="tab"
+                aria-selected={tab === t.id}
+                onClick={() => setTab(t.id)}
+                className={`h-11 flex-1 border-b-2 text-sm md:flex-none md:px-5 ${
+                  tab === t.id ? 'border-accent font-semibold text-accent' : 'border-transparent font-medium text-muted'
+                }`}
+              >
+                {t.label}
+                {count ? ` · ${count}` : ''}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
+      {tab === 'notes' && <NotesTab projectId={p.id} />}
+      {tab === 'files' && <FilesTab projectId={p.id} />}
+      {tab === 'checklists' && (
       <main className="flex flex-1 flex-col gap-3.5 px-4 pt-4 pb-10 md:px-8">
         {p.checklists.length === 0 && (
           <p className="rounded-2xl border border-dashed border-line bg-surface px-5 py-8 text-center text-sm text-muted">
@@ -197,8 +233,9 @@ function ProjectView({ project: p, navigate }: { project: ProjectDetail; navigat
           </p>
         )}
       </main>
+      )}
 
-      {item && <ItemSheet item={item} checklists={p.checklists} mutations={m} onClose={close} />}
+      {item && <ItemSheet projectId={p.id} item={item} checklists={p.checklists} mutations={m} onClose={close} />}
       {editing && (
         <ChecklistSheet
           checklist={editing}
@@ -290,7 +327,7 @@ function ActionsSheet({
         </button>
         {confirm ? (
           <button type="button" onClick={() => (onDelete(), onClose())} className="h-12 rounded-xl bg-danger text-[15px] font-semibold text-white">
-            Delete permanently, with all checklists
+            Delete permanently, with all checklists, notes and files
           </button>
         ) : (
           <button type="button" onClick={() => setConfirm(true)} className="h-12 rounded-xl border border-line text-[15px] font-semibold text-danger">

@@ -44,6 +44,13 @@ Run `pnpm test` and `pnpm typecheck` before committing; the pre-commit hook runs
 - Keep `better-sqlite3` on 12.x: 13.x ships no prebuilt binaries and needs Xcode Command Line Tools to install.
 - UI: Inter + Space Grotesk, accent `#2F5BEA`, tokens in `apps/web/src/index.css`. Touch targets ≥ 44 px; real buttons and labels.
 
-## Next: phase 4 — notes and attachments
+## Attachments
 
-Notes timeline in the app, multipart upload, sharp thumbnails and HEIC conversion, Files tab, camera button, and the `get_attachment` and `add_attachment` MCP tools.
+- Files are content-addressed under `<DATA_DIR>/files`; delete rows through the services so unreferenced files are removed.
+- Types are sniffed from content. Only raster images and PDFs are served inline.
+- `sharp`, `heic-decode` and `unpdf` stay external in the server bundle and are installed in the Dockerfile.
+- `add_attachment` URL fetches must keep refusing private addresses (`packages/core/src/fetch-url.ts`).
+
+## Next: phase 5 — daily-use polish
+
+Today, Buy and Search screens, and offline reading.

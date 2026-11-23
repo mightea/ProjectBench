@@ -3,9 +3,11 @@ import { useId, useState, type FormEvent } from 'react';
 import { ExternalIcon, StarIcon, TrashIcon } from '../components/icons.tsx';
 import { Field, inputClass, Sheet } from '../components/Sheet.tsx';
 import { formatPrice } from '../lib/format.ts';
-import type { useProjectMutations } from '../lib/queries.ts';
+import { useAttachments, useNoteMutations, type useProjectMutations } from '../lib/queries.ts';
+import { AttachmentList, FilePickers } from './Attachments.tsx';
 
 interface Props {
+  projectId: string;
   item: ChecklistItem;
   checklists: Checklist[];
   mutations: ReturnType<typeof useProjectMutations>;
@@ -14,7 +16,7 @@ interface Props {
 
 const numberOrNull = (v: string) => (v.trim() === '' ? null : Number(v.replace(',', '.')));
 
-export function ItemSheet({ item, checklists, mutations, onClose }: Props) {
+export function ItemSheet({ projectId, item, checklists, mutations, onClose }: Props) {
   const list = checklists.find((c) => c.id === item.checklistId)!;
   const kind = list.kind;
   const [text, setText] = useState(item.text);
@@ -255,6 +257,35 @@ export function ItemSheet({ item, checklists, mutations, onClose }: Props) {
           )}
         </section>
       )}
+
+      <ItemFiles projectId={projectId} itemId={item.id} />
     </Sheet>
+  );
+}
+
+function ItemFiles({ projectId, itemId }: { projectId: string; itemId: string }) {
+  const files = useAttachments(projectId);
+  const { upload } = useNoteMutations(projectId);
+  const attached = files.data?.filter((a) => a.itemId === itemId) ?? [];
+  return (
+    <section className="mt-6 flex flex-col gap-2" aria-labelledby={`${itemId}-files`}>
+      <h3 id={`${itemId}-files`} className="text-[13px] font-semibold text-[#3F4450]">
+        Photos and files
+      </h3>
+      <AttachmentList attachments={attached} />
+      <div className="flex items-center gap-2">
+        <FilePickers disabled={upload.isPending} onFiles={(picked) => upload.mutate({ files: picked, itemId })} />
+        {upload.isPending && (
+          <span role="status" className="text-sm text-muted">
+            Uploading…
+          </span>
+        )}
+      </div>
+      {upload.isError && (
+        <p role="alert" className="text-sm text-danger">
+          {upload.error.message}
+        </p>
+      )}
+    </section>
   );
 }

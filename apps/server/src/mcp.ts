@@ -2,6 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import {
+  addAttachmentFrom,
   addItemsToProject,
   addNote,
   agenda,
@@ -16,13 +17,16 @@ import {
   preferredLink,
   PROJECT_STATUSES,
   projectMarkdown,
+  readAttachmentContent,
   resolveProject,
   searchAll,
   setItemLinks,
   shoppingList,
   updateItem,
   updateProject,
+  type Attachment,
   type Db,
+  type FileStore,
   type ItemCreate,
   type ItemWithContext,
   type ServiceContext,
@@ -58,21 +62,46 @@ const text = (value: string): CallToolResult => ({ content: [{ type: 'text', tex
 const json = (value: unknown): CallToolResult => text(JSON.stringify(value, null, 2));
 
 /** Turns expected failures into tool errors the model can read and act on. */
+function toolError(err: unknown): CallToolResult {
+  const failure = (message: string): CallToolResult => ({ isError: true, content: [{ type: 'text', text: message }] });
+  if (err instanceof NotFoundError || err instanceof InvalidOperationError || err instanceof AmbiguousMatchError) {
+    return failure(err.message);
+  }
+  if (err instanceof ZodError) {
+    return failure(`Invalid input: ${err.issues.map((i) => `${i.path.join('.') || 'input'}: ${i.message}`).join('; ')}`);
+  }
+  console.error(err);
+  return failure('Internal error');
+}
+
 function run(handler: () => CallToolResult): CallToolResult {
   try {
     return handler();
   } catch (err) {
-    const failure = (message: string): CallToolResult => ({ isError: true, content: [{ type: 'text', text: message }] });
-    if (err instanceof NotFoundError || err instanceof InvalidOperationError || err instanceof AmbiguousMatchError) {
-      return failure(err.message);
-    }
-    if (err instanceof ZodError) {
-      return failure(`Invalid input: ${err.issues.map((i) => `${i.path.join('.') || 'input'}: ${i.message}`).join('; ')}`);
-    }
-    console.error(err);
-    return failure('Internal error');
+    return toolError(err);
   }
 }
+
+async function runAsync(handler: () => Promise<CallToolResult>): Promise<CallToolResult> {
+  try {
+    return await handler();
+  } catch (err) {
+    return toolError(err);
+  }
+}
+
+const attachmentInfo = ({ id, filename, mime, sizeBytes, width, height, caption, noteId, itemId, createdAt }: Attachment) => ({
+  id,
+  filename,
+  mime,
+  size_bytes: sizeBytes,
+  width,
+  height,
+  caption,
+  note_id: noteId,
+  item_id: itemId,
+  created_at: createdAt,
+});
 
 /** Compact item for list-style results. */
 const brief = (item: ItemWithContext) => {
@@ -101,8 +130,8 @@ const READ_ONLY = { readOnlyHint: true, destructiveHint: false, idempotentHint: 
 const ADDITIVE = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false } as const;
 const UPDATE = { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false } as const;
 
-export function createMcpServer(db: Db): McpServer {
-  const ctx: ServiceContext = { db, actor: 'mcp' };
+export function createMcpServer(db: Db, files?: FileStore): McpServer {
+  const ctx: ServiceContext = { db, actor: 'mcp', files };
   const server = new McpServer(
     { name: 'projectbench', title: 'ProjectBench', version: VERSION },
     {
@@ -363,12 +392,69 @@ export function createMcpServer(db: Db): McpServer {
     ({ project, body }) => run(() => json(addNote(ctx, resolveProject(ctx, project).id, { body }))),
   );
 
+  server.registerTool(
+    'get_attachment',
+    {
+      title: 'Get attachment',
+      description:
+        'Reads an attachment. Images come back resized, PDFs and text files as text, other files as details only. Attachment ids are in get_project.',
+      inputSchema: { attachment_id: z.string().min(1) },
+      annotations: READ_ONLY,
+    },
+    ({ attachment_id }) =>
+      runAsync(async () => {
+        const content = await readAttachmentContent(ctx, attachment_id);
+        const info = attachmentInfo(content.attachment);
+        if (content.kind === 'image') {
+          return {
+            content: [
+              { type: 'text', text: JSON.stringify(info, null, 2) },
+              { type: 'image', data: content.base64, mimeType: content.mime },
+            ],
+          };
+        }
+        if (content.kind === 'text') {
+          const details = JSON.stringify(content.pages === undefined ? info : { ...info, pages: content.pages }, null, 2);
+          return {
+            content: [
+              { type: 'text', text: details },
+              { type: 'text', text: content.text || 'This file contains no readable text.' },
+            ],
+          };
+        }
+        return json({ ...info, content: 'This file type cannot be shown here.' });
+      }),
+  );
+
+  server.registerTool(
+    'add_attachment',
+    {
+      title: 'Add attachment',
+      description:
+        'Attaches a file of up to 50 MB to a project, optionally on a note or item. Give a public http(s) url or base64 data with a filename.',
+      inputSchema: {
+        project: projectRef,
+        url: z.string().max(2000).optional().describe('Public http(s) URL to download. Private addresses are refused.'),
+        base64: z.string().optional().describe('File content as base64'),
+        filename: z.string().min(1).max(255).optional().describe('Required with base64. Derived from the URL if omitted.'),
+        note_id: z.string().min(1).optional(),
+        item_id: z.string().min(1).optional(),
+        caption: z.string().max(500).optional(),
+      },
+      annotations: { ...ADDITIVE, openWorldHint: true },
+    },
+    ({ project, note_id, item_id, ...source }) =>
+      runAsync(async () =>
+        json(attachmentInfo(await addAttachmentFrom(ctx, resolveProject(ctx, project).id, { ...source, noteId: note_id, itemId: item_id }))),
+      ),
+  );
+
   return server;
 }
 
 /** Handles one MCP request. The server is stateless, so each request gets its own instance. */
-export async function handleMcpRequest(db: Db, request: Request): Promise<Response> {
-  const server = createMcpServer(db);
+export async function handleMcpRequest(db: Db, request: Request, files?: FileStore): Promise<Response> {
+  const server = createMcpServer(db, files);
   const transport = new WebStandardStreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
   await server.connect(transport);
   try {

@@ -1,7 +1,7 @@
 import { and, asc, desc, eq, inArray, ne, notInArray, sql, type SQL } from 'drizzle-orm';
 import { NotFoundError } from '../errors.ts';
 import { newId } from '../ids.ts';
-import { checklistItems, checklists, itemLinks, projects, projectTags, tags } from '../schema.ts';
+import { attachments, checklistItems, checklists, itemLinks, projects, projectTags, tags } from '../schema.ts';
 import {
   projectCreateSchema,
   projectListQuerySchema,
@@ -25,6 +25,7 @@ import {
   type DbLike,
   type ServiceContext,
 } from './context.ts';
+import { releaseFiles } from './file-refs.ts';
 import { setProjectTags, tagsForProjects } from './tags.ts';
 
 type ProjectRow = typeof projects.$inferSelect;
@@ -255,12 +256,14 @@ export function updateProject(ctx: ServiceContext, id: string, input: ProjectUpd
 }
 
 export function deleteProject(ctx: ServiceContext, id: string): void {
+  const hashes = ctx.db.select({ sha256: attachments.sha256 }).from(attachments).where(eq(attachments.projectId, id)).all();
   ctx.db.transaction((tx) => {
     const res = tx.delete(projects).where(eq(projects.id, id)).run();
     if (res.changes === 0) throw new NotFoundError('Project', id);
     removeProjectSearch(tx, id);
     logActivity(tx, ctx, { projectId: null, entity: 'project', entityId: id, action: 'delete' });
   });
+  releaseFiles(ctx, hashes.map((h) => h.sha256));
 }
 
 /** Marks a project as touched, e.g. when one of its items changes. */
