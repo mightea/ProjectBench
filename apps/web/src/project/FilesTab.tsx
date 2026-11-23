@@ -16,7 +16,7 @@ export function FilesTab({ projectId }: { projectId: string }) {
   const error = m.upload.error ?? m.deleteAttachment.error;
 
   return (
-    <main className="flex flex-1 flex-col gap-4 px-4 pt-4 pb-10 md:px-8">
+    <main className="flex flex-1 flex-col gap-4">
       <div className="flex items-center gap-2">
         <FilePickers disabled={m.upload.isPending} onFiles={(picked) => m.upload.mutate({ files: picked })} />
         <span role="status" className="text-sm text-muted">

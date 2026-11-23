@@ -36,8 +36,12 @@ const project = {
   priority: 1,
   dueDate: null,
   color: null,
+  icon: null,
+  coverAttachmentId: null,
   tags: ['homelab'],
-  progress: { total: 2, done: 1, ordered: 1 },
+  progress: { total: 2, done: 0, ordered: 1 },
+  kinds: { buy: { total: 2, done: 0, ordered: 1 }, clarify: { total: 0, done: 0, ordered: 0 }, todo: { total: 0, done: 0, ordered: 0 } },
+  nextStep: null,
   nextItemDue: null,
   updatedAt: '2026-11-22T10:00:00Z',
   description: null,
@@ -131,8 +135,10 @@ describe('App', () => {
 
   it('shows the projects list', async () => {
     renderApp(signedIn, { '/api/projects': [project] }, '/projects');
-    expect(await screen.findByRole('heading', { name: 'Projects' })).toBeTruthy();
-    expect(await screen.findByText('Rack fan controller')).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Projects', level: 1 })).toBeTruthy();
+    expect(await within(await screen.findByRole('main')).findByText('Rack fan controller')).toBeTruthy();
+    expect(within(screen.getByRole('main')).getByRole('heading', { name: 'Active · 1' })).toBeTruthy();
+    expect(within(screen.getByRole('main')).getByText('1 on the way')).toBeTruthy();
   });
 
   it('groups the buy list by shop with totals and switches to projects', async () => {
@@ -209,8 +215,10 @@ describe('App', () => {
     const list = screen.getByRole('region', { name: 'To buy' });
     expect(within(list).getByText('Noctua NF-A4x20 PWM')).toBeTruthy();
     expect(within(list).getByRole('link', { name: /galaxus\.ch/ }).getAttribute('href')).toBe('https://www.galaxus.ch/p/1');
-    expect(within(list).getByText('Ordered · #8142')).toBeTruthy();
     expect(within(list).getByRole('button', { name: 'Mark as ordered: Noctua NF-A4x20 PWM' })).toBeTruthy();
+    expect(within(list).queryByText('JST-XH kit')).toBeNull();
+    fireEvent.click(within(list).getByRole('button', { name: /1 on the way/ }));
+    expect(within(list).getByText(/ordered .*#8142 · no ETA/)).toBeTruthy();
     expect(within(list).getByRole('button', { name: 'Mark as received: JST-XH kit' })).toBeTruthy();
   });
 
@@ -229,7 +237,7 @@ describe('App', () => {
 
   it('filters projects by the tag in the URL', async () => {
     renderApp(signedIn, { '/api/projects': [project], '/api/tags': [{ name: 'homelab', projects: 1 }] }, '/projects?tag=homelab');
-    await screen.findByText('Rack fan controller');
+    await within(await screen.findByRole('main')).findByText('Rack fan controller');
     expect(vi.mocked(fetch).mock.calls.some(([url]) => String(url).includes('/api/projects?') && String(url).includes('tag=homelab'))).toBe(true);
     expect((await screen.findByRole('button', { name: '#homelab' })).getAttribute('aria-pressed')).toBe('true');
   });

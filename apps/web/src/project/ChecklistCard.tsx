@@ -3,7 +3,7 @@ import {
   closestCenter,
   DndContext,
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
   TouchSensor,
   useSensor,
   useSensors,
@@ -11,9 +11,12 @@ import {
 } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useId, useState, type ClipboardEvent, type FormEvent } from 'react';
-import { DotsIcon, kindIcon, PlusIcon } from '../components/icons.tsx';
+import { BoxIcon, CheckIcon, ChevronDownIcon, DotsIcon, kindIcon, PlusIcon } from '../components/icons.tsx';
 import { KIND_META } from '../lib/format.ts';
-import { ItemRow, nextState } from './ItemRow.tsx';
+import { itemShop, ItemRow, nextState } from './ItemRow.tsx';
+
+/** Open items shown on large screens before "Show more". */
+const DESKTOP_LIMIT = 6;
 
 interface Props {
   checklist: Checklist;
@@ -37,18 +40,36 @@ export function ChecklistCard({ checklist, onAddItems, onToggle, onMove, onOpenI
   const Icon = kindIcon[checklist.kind];
   const meta = KIND_META[checklist.kind];
   const [draft, setDraft] = useState('');
+  const [showOrdered, setShowOrdered] = useState(false);
+  const [showDone, setShowDone] = useState(false);
+  const [showAll, setShowAll] = useState(false);
   const inputId = useId();
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 6 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    // A long press, so that swiping over the rows still scrolls the page.
+    useSensor(TouchSensor, { activationConstraint: { delay: 350, tolerance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
-  const counts = {
-    done: checklist.items.filter((i) => i.state === 'done').length,
-    ordered: checklist.items.filter((i) => i.state === 'ordered').length,
-    open: checklist.items.filter((i) => i.state === 'open').length,
-  };
+  const openItems = checklist.items.filter((i) => i.state === 'open');
+  const orderedItems = checklist.items.filter((i) => i.state === 'ordered');
+  const doneItems = checklist.items.filter((i) => i.state === 'done');
+  const visible = [...openItems, ...(showOrdered ? orderedItems : []), ...(showDone ? doneItems : [])];
+  const shops = [...new Set(orderedItems.map(itemShop).filter(Boolean))].join(', ');
+  const hiddenOnDesktop = showAll ? 0 : Math.max(0, openItems.length - DESKTOP_LIMIT);
+
+  const counts = { done: doneItems.length, ordered: orderedItems.length, open: openItems.length };
+
+  const row = (item: Checklist['items'][number], className?: string) => (
+    <ItemRow
+      key={item.id}
+      item={item}
+      kind={checklist.kind}
+      className={className}
+      onToggle={() => onToggle(item.id, nextState(checklist.kind, item.state))}
+      onOpen={() => onOpenItem(item.id)}
+    />
+  );
   const summary =
     checklist.kind === 'buy' && checklist.items.length
       ? [counts.done && `${counts.done} received`, counts.ordered && `${counts.ordered} ordered`, counts.open && `${counts.open} open`]
@@ -98,18 +119,43 @@ export function ChecklistCard({ checklist, onAddItems, onToggle, onMove, onOpenI
       </div>
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-        <SortableContext items={checklist.items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
-          <ul>
-            {checklist.items.map((item) => (
-              <ItemRow
-                key={item.id}
-                item={item}
-                kind={checklist.kind}
-                onToggle={() => onToggle(item.id, nextState(checklist.kind, item.state))}
-                onOpen={() => onOpenItem(item.id)}
-              />
-            ))}
-          </ul>
+        <SortableContext items={visible.map((i) => i.id)} strategy={verticalListSortingStrategy}>
+          <ul>{openItems.map((item, i) => row(item, !showAll && i >= DESKTOP_LIMIT ? 'lg:hidden' : ''))}</ul>
+          {hiddenOnDesktop > 0 && (
+            <button type="button" onClick={() => setShowAll(true)} className="hidden min-h-11 w-full items-center border-t border-line-soft px-3.5 text-[13px] font-semibold text-accent-ink hover:bg-ground lg:flex">
+              Show {hiddenOnDesktop} more
+            </button>
+          )}
+          {orderedItems.length > 0 && (
+            <button
+              type="button"
+              aria-expanded={showOrdered}
+              onClick={() => setShowOrdered(!showOrdered)}
+              className="flex min-h-12 w-full items-center gap-2.5 border-t border-line-soft bg-warning-soft px-3.5 text-left text-sm font-semibold text-warning-ink"
+            >
+              <BoxIcon width={18} height={18} strokeWidth={2} />
+              <span className="min-w-0 flex-1 truncate">
+                {orderedItems.length} on the way{shops ? ` · ${shops}` : ''}
+              </span>
+              <ChevronDownIcon width={18} height={18} className={showOrdered ? 'rotate-180' : ''} />
+            </button>
+          )}
+          {showOrdered && <ul className="border-t border-line-soft">{orderedItems.map((item) => row(item))}</ul>}
+          {doneItems.length > 0 && (
+            <button
+              type="button"
+              aria-expanded={showDone}
+              onClick={() => setShowDone(!showDone)}
+              className="flex min-h-12 w-full items-center gap-2.5 border-t border-line-soft px-3.5 text-left text-sm font-semibold text-muted hover:bg-ground"
+            >
+              <CheckIcon width={18} height={18} />
+              <span className="flex-1">
+                {doneItems.length} {checklist.kind === 'buy' ? 'received' : checklist.kind === 'clarify' ? 'answered' : 'done'}
+              </span>
+              <ChevronDownIcon width={18} height={18} className={showDone ? 'rotate-180' : ''} />
+            </button>
+          )}
+          {showDone && <ul className="border-t border-line-soft">{doneItems.map((item) => row(item))}</ul>}
         </SortableContext>
       </DndContext>
 

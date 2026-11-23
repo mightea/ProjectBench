@@ -253,3 +253,29 @@ describe('links', () => {
     return listProjects(ctx)[0]!.id;
   }
 });
+
+describe('project overview fields', () => {
+  it('counts items per kind and finds the first open step', () => {
+    const project = createProject(ctx, { title: 'Bench' });
+    const buy = createChecklist(ctx, project.id, { title: 'Parts', kind: 'buy' });
+    const todo = createChecklist(ctx, project.id, { title: 'Steps', kind: 'todo' });
+    const [part] = addItems(ctx, buy.id, [{ text: 'Fan' }, { text: 'Cable' }]);
+    const [first] = addItems(ctx, todo.id, [{ text: 'Measure', note: 'Twice' }, { text: 'Cut' }]);
+    updateItem(ctx, part!.id, { state: 'ordered' });
+    updateItem(ctx, first!.id, { state: 'done' });
+
+    const summary = listProjects(ctx).find((p) => p.id === project.id)!;
+    expect(summary.kinds.buy).toEqual({ total: 2, done: 0, ordered: 1 });
+    expect(summary.kinds.todo).toEqual({ total: 2, done: 1, ordered: 0 });
+    expect(summary.kinds.clarify).toEqual({ total: 0, done: 0, ordered: 0 });
+    expect(summary.progress).toEqual({ total: 4, done: 1, ordered: 1 });
+    expect(summary.nextStep?.text).toBe('Cut');
+  });
+
+  it('stores a look and refuses a cover from outside the project', () => {
+    const project = createProject(ctx, { title: 'Bench', color: 'teal', icon: 'chip' });
+    expect(project).toMatchObject({ color: 'teal', icon: 'chip', coverAttachmentId: null });
+    expect(() => updateProject(ctx, project.id, { coverAttachmentId: 'missing' })).toThrow(NotFoundError);
+    expect(() => updateProject(ctx, project.id, { color: 'neon' as 'teal' })).toThrow();
+  });
+});

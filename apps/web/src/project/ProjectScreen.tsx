@@ -1,18 +1,27 @@
 import type { ProjectDetail } from '@projectbench/core/schemas';
 import { useEffect, useState, type MouseEvent } from 'react';
 import { ApiError } from '../api.ts';
-import { PriorityBadge, ProgressBar, progressLabel } from '../components/bits.tsx';
-import { BackIcon, DotsIcon, PlusIcon } from '../components/icons.tsx';
+import { BackIcon, DotsIcon, PencilIcon, PlusIcon } from '../components/icons.tsx';
+import { LinkedText } from '../components/LinkedText.tsx';
+import { ProjectTile } from '../components/ProjectTile.tsx';
 import { Sheet } from '../components/Sheet.tsx';
-import { dueTone, dueToneClass, formatDue, STATUS_META } from '../lib/format.ts';
+import { dueTone, dueToneClass, formatDue, PRIORITY_META, STATUS_META } from '../lib/format.ts';
+import { lookStyle, projectColor } from '../lib/look.ts';
 import { QueryFallback } from '../components/QueryFallback.tsx';
 import { useAttachments, useNotes, useProject, useProjectMutations } from '../lib/queries.ts';
 import { ChecklistCard } from './ChecklistCard.tsx';
 import { ChecklistSheet } from './ChecklistSheet.tsx';
 import { FilesTab } from './FilesTab.tsx';
 import { ItemSheet } from './ItemSheet.tsx';
+import { LookSheet } from './LookSheet.tsx';
 import { NotesTab } from './NotesTab.tsx';
 import { DetailsSheet, ProjectProperties } from './ProjectDetails.tsx';
+import { LatestNote, OverviewTiles, UpNext } from './ProjectOverview.tsx';
+
+/** Tags shown in the header before "+n". */
+const HERO_TAGS = 3;
+/** Descriptions longer than this are clamped to three lines. */
+const LONG_DESCRIPTION = 180;
 
 const TABS = [
   { id: 'checklists', label: 'Checklists' },
@@ -26,6 +35,7 @@ type Panel =
   | { type: 'checklist'; id: string }
   | { type: 'new-checklist' }
   | { type: 'details' }
+  | { type: 'look' }
   | { type: 'actions' };
 
 export interface BackLink {
@@ -61,8 +71,14 @@ function ProjectView({ project: p, navigate, backLink }: { project: ProjectDetai
   const notes = useNotes(p.id);
   const files = useAttachments(p.id);
   const [tab, setTab] = useState<TabId>('checklists');
-  const [panel, setPanel] = useState<Panel | null>(null);
+  // A new project arrives with ?look to choose its color and icon first.
+  const [panel, setPanel] = useState<Panel | null>(() => (new URLSearchParams(window.location.search).has('look') ? { type: 'look' } : null));
+  const [descriptionOpen, setDescriptionOpen] = useState(false);
   const close = () => setPanel(null);
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).has('look')) window.history.replaceState(null, '', window.location.pathname);
+  }, []);
 
   useEffect(() => {
     document.title = `${p.title} · ProjectBench`;
@@ -70,6 +86,14 @@ function ProjectView({ project: p, navigate, backLink }: { project: ProjectDetai
       document.title = 'ProjectBench';
     };
   }, [p.title]);
+
+  const jumpTo = (checklistId: string) => {
+    setTab('checklists');
+    requestAnimationFrame(() => document.getElementById(`${checklistId}-title`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+  };
+  const cover = p.coverAttachmentId ? files.data?.find((a) => a.id === p.coverAttachmentId) : undefined;
+  const coverUrl = p.coverAttachmentId ? `/files/${encodeURIComponent(p.coverAttachmentId)}` : null;
+  const longDescription = (p.description?.length ?? 0) > LONG_DESCRIPTION || (p.description?.split('\n').length ?? 0) > 3;
 
   const back = (e: MouseEvent) => {
     e.preventDefault();
@@ -80,58 +104,72 @@ function ProjectView({ project: p, navigate, backLink }: { project: ProjectDetai
   const editing = panel?.type === 'checklist' ? p.checklists.find((c) => c.id === panel.id) : undefined;
 
   return (
-    <div className="w-full flex-1 lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:pr-8">
-    <div className="flex min-h-dvh min-w-0 flex-col md:min-h-0">
-      <div className="border-b border-line bg-surface md:border-b-0 md:bg-transparent">
-        <div className="flex items-center justify-between px-2 pt-3 md:px-6 md:pt-5">
-          <a href={backLink.to} onClick={back} className="flex h-11 items-center gap-1 rounded-full pr-3 pl-1.5 text-[15px] font-medium hover:bg-ground">
+    <div className="w-full flex-1" style={lookStyle(projectColor(p))}>
+      <header className="bg-(--look-soft) pb-4 md:rounded-b-2xl">
+        {coverUrl && (
+          <img
+            src={`${coverUrl}/thumb`}
+            srcSet={cover?.width && cover.width > 480 ? `${coverUrl}/thumb 480w, ${coverUrl} ${cover.width}w` : undefined}
+            sizes="100vw"
+            alt=""
+            className="h-36 w-full object-cover md:h-48 md:rounded-b-2xl"
+          />
+        )}
+        <div className="flex items-center justify-between px-2 pt-2.5 md:px-6 md:pt-5">
+          <a href={backLink.to} onClick={back} className="flex h-11 items-center gap-1 rounded-full pr-3 pl-1.5 text-[15px] font-medium hover:bg-surface/60">
             <BackIcon width={22} height={22} />
             <span>{backLink.label}</span>
           </a>
           <div className="flex items-center gap-1">
-            <button type="button" onClick={() => setPanel({ type: 'details' })} className="h-11 rounded-full px-4 text-sm font-semibold text-accent-ink hover:bg-accent-soft">
-              Edit
+            <button type="button" onClick={() => setPanel({ type: 'look' })} className="hidden h-11 rounded-xl border border-line-strong bg-surface px-3.5 text-[13px] font-semibold md:block">
+              Edit look
             </button>
-            <button
-              type="button"
-              onClick={() => setPanel({ type: 'actions' })}
-              aria-label="More actions"
-              className="flex size-11 items-center justify-center rounded-full hover:bg-ground"
-            >
-              <DotsIcon width={22} height={22} />
+            <button type="button" onClick={() => setPanel({ type: 'details' })} aria-label="Edit project" className="flex size-11 items-center justify-center rounded-full hover:bg-surface/60">
+              <PencilIcon width={20} height={20} />
+            </button>
+            <button type="button" onClick={() => setPanel({ type: 'actions' })} aria-label="More actions" className="flex size-11 items-center justify-center rounded-full hover:bg-surface/60">
+              <DotsIcon width={20} height={20} />
             </button>
           </div>
         </div>
 
-        <div className="flex flex-col gap-3 px-5 pt-1 pb-4 md:px-8">
-          <div>
-            <h1 className="font-display text-[26px] leading-tight font-semibold tracking-tight md:text-[30px]">{p.title}</h1>
-            {p.description ? (
-              <p className="mt-1.5 text-sm leading-relaxed whitespace-pre-line text-muted">{p.description}</p>
-            ) : (
-              <button type="button" onClick={() => setPanel({ type: 'details' })} className="mt-1 min-h-11 text-sm text-muted hover:text-ink lg:min-h-0">
-                Add a description
+        <div className="flex flex-col gap-3 px-5 pt-1.5 md:px-8">
+          <div className="flex items-center gap-3.5">
+            <button type="button" onClick={() => setPanel({ type: 'look' })} aria-label="Change project look" className="shrink-0 rounded-[14px]">
+              <ProjectTile project={p} size={52} />
+            </button>
+            <div className="flex min-w-0 flex-col gap-1">
+              <h1 className="font-display text-[28px] leading-[1.1] font-semibold tracking-tight md:text-[32px]">{p.title}</h1>
+              <button type="button" onClick={() => setPanel({ type: 'details' })} className="flex min-h-6 items-center gap-1.5 self-start text-left text-[13px] text-ink-soft">
+                <span className={`size-2 shrink-0 rounded-full ${STATUS_META[p.status].dot}`} aria-hidden="true" />
+                <span>
+                  {STATUS_META[p.status].label} · {PRIORITY_META[p.priority]?.label} ·{' '}
+                  {p.dueDate ? <span className={dueToneClass[dueTone(p.dueDate)]}>due {formatDue(p.dueDate)}</span> : 'no due date'}
+                </span>
               </button>
-            )}
+            </div>
           </div>
 
-          {/* On desktop these fields are in the panel beside the project. */}
-          <div className="flex flex-wrap items-center gap-2 lg:hidden">
-            <button type="button" onClick={() => setPanel({ type: 'details' })} aria-label={`Edit status: ${STATUS_META[p.status].label}`} className="flex h-11 items-center gap-1.5 rounded-lg border border-line bg-surface px-2.5 text-[13px] font-medium md:h-9">
-              <span className={`size-2 rounded-full ${STATUS_META[p.status].dot}`} aria-hidden="true" />
-              {STATUS_META[p.status].label}
+          {p.description ? (
+            <div className="flex max-w-3xl flex-col items-start gap-0.5">
+              <p className={`text-sm leading-normal whitespace-pre-line text-ink-soft ${longDescription && !descriptionOpen ? 'line-clamp-3' : ''}`}>
+                <LinkedText text={p.description} />
+              </p>
+              {longDescription && (
+                <button type="button" onClick={() => setDescriptionOpen(!descriptionOpen)} aria-expanded={descriptionOpen} className="flex min-h-11 items-center text-[13px] font-semibold text-(--look-ink)">
+                  {descriptionOpen ? 'Show less' : 'More'}
+                </button>
+              )}
+            </div>
+          ) : (
+            <button type="button" onClick={() => setPanel({ type: 'details' })} className="min-h-11 self-start text-sm text-ink-soft hover:text-ink">
+              Add a description
             </button>
-            <button type="button" onClick={() => setPanel({ type: 'details' })} aria-label={`Edit priority: P${p.priority}`} className="flex h-11 items-center md:h-9">
-              <PriorityBadge priority={p.priority} long />
-            </button>
-            <button
-              type="button"
-              onClick={() => setPanel({ type: 'details' })}
-              className={`h-11 rounded-lg border border-line bg-surface px-2.5 text-[13px] font-medium md:h-9 ${p.dueDate ? dueToneClass[dueTone(p.dueDate)] : 'text-muted'}`}
-            >
-              {p.dueDate ? `Due ${formatDue(p.dueDate)}` : 'Add due date'}
-            </button>
-            {p.tags.map((t) => (
+          )}
+
+          {/* On desktop the tags are in the panel beside the project. */}
+          <div className="flex flex-wrap items-center gap-1.5 lg:hidden">
+            {p.tags.slice(0, HERO_TAGS).map((t) => (
               <a
                 key={t}
                 href={`/projects?tag=${encodeURIComponent(t)}`}
@@ -140,21 +178,21 @@ function ProjectView({ project: p, navigate, backLink }: { project: ProjectDetai
                   e.preventDefault();
                   navigate(`/projects?tag=${encodeURIComponent(t)}`);
                 }}
-                className="flex h-11 items-center rounded-lg border border-line bg-surface px-2.5 text-[13px] font-medium text-muted md:h-9"
+                className="flex h-11 items-center rounded-full bg-surface/70 px-3 text-xs font-medium text-ink-soft"
               >
                 #{t}
               </a>
             ))}
+            {p.tags.length > HERO_TAGS && (
+              <button type="button" onClick={() => setPanel({ type: 'details' })} aria-label={`Show all ${p.tags.length} tags`} className="h-11 rounded-full bg-surface/70 px-3 text-xs font-medium text-ink-soft">
+                +{p.tags.length - HERO_TAGS}
+              </button>
+            )}
             {p.tags.length === 0 && (
-              <button type="button" onClick={() => setPanel({ type: 'details' })} className="h-11 rounded-lg border border-dashed border-line-strong px-2.5 text-[13px] font-medium text-muted md:h-9">
+              <button type="button" onClick={() => setPanel({ type: 'details' })} className="h-11 rounded-full border border-dashed border-line-strong px-3 text-xs font-medium text-ink-soft">
                 Add tags
               </button>
             )}
-          </div>
-
-          <div className="flex items-center gap-2.5 lg:hidden">
-            <ProgressBar progress={p.progress} className="h-1.5 flex-1" />
-            <span className="text-xs whitespace-nowrap text-muted">{progressLabel(p.progress)}</span>
           </div>
           {m.updateProject.isError && (
             <p role="alert" className="rounded-xl bg-danger-soft px-4 py-3 text-sm text-danger">
@@ -162,66 +200,80 @@ function ProjectView({ project: p, navigate, backLink }: { project: ProjectDetai
             </p>
           )}
         </div>
+      </header>
 
-        <div role="tablist" aria-label="Project sections" className="flex px-3 md:px-6">
-          {TABS.map((t) => {
-            const count = t.id === 'notes' ? notes.data?.length : t.id === 'files' ? files.data?.length : undefined;
-            return (
+      <div className="flex flex-col gap-3.5 px-4 pt-3.5 pb-10 md:px-8 md:pt-6 lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-x-6 lg:gap-y-4">
+        <OverviewTiles project={p} onJump={jumpTo} />
+
+        <div className="flex min-w-0 flex-col gap-3.5 lg:col-start-2 lg:row-span-2 lg:row-start-1">
+          <UpNext project={p} onDone={(itemId) => m.updateItem.mutate({ id: itemId, state: 'done' })} />
+          <LatestNote notes={notes.data} onAll={() => setTab('notes')} />
+          <ProjectProperties project={p} onChange={(patch) => m.updateProject.mutate(patch)} />
+        </div>
+
+        <div className="flex min-w-0 flex-col gap-3.5 lg:col-start-1">
+          <div role="tablist" aria-label="Project sections" className="flex rounded-[10px] bg-line p-[3px] md:gap-1 md:rounded-none md:border-b md:border-line md:bg-transparent md:p-0">
+            {TABS.map((t) => {
+              const count = t.id === 'notes' ? notes.data?.length : t.id === 'files' ? files.data?.length : undefined;
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === t.id}
+                  onClick={() => setTab(t.id)}
+                  className={`h-11 flex-1 rounded-lg text-sm md:flex-none md:rounded-none md:border-b-2 md:px-4 ${
+                    tab === t.id
+                      ? 'bg-surface font-semibold shadow-sm md:border-accent md:bg-transparent md:text-accent-ink md:shadow-none'
+                      : 'font-medium text-ink-soft md:border-transparent md:text-muted'
+                  }`}
+                >
+                  {t.label}
+                  {count ? ` · ${count}` : ''}
+                </button>
+              );
+            })}
+          </div>
+
+          {tab === 'notes' && <NotesTab projectId={p.id} />}
+          {tab === 'files' && <FilesTab projectId={p.id} />}
+          {tab === 'checklists' && (
+            <main className="flex flex-col gap-3.5">
+              {p.checklists.length === 0 && (
+                <p className="rounded-2xl border border-dashed border-line bg-surface px-5 py-8 text-center text-sm text-muted">
+                  No checklists yet. Add one for things to buy, questions to clarify or steps to do.
+                </p>
+              )}
+              <div className="grid items-start gap-3.5 xl:grid-cols-2">
+                {p.checklists.map((c) => (
+                  <ChecklistCard
+                    key={c.id}
+                    checklist={c}
+                    onAddItems={(items) => m.addItems.mutate({ checklistId: c.id, items })}
+                    onToggle={(itemId, state) => m.updateItem.mutate({ id: itemId, state })}
+                    onMove={(itemId, position) => m.updateItem.mutate({ id: itemId, position })}
+                    onOpenItem={(itemId) => setPanel({ type: 'item', id: itemId })}
+                    onEdit={() => setPanel({ type: 'checklist', id: c.id })}
+                  />
+                ))}
+              </div>
               <button
-                key={t.id}
                 type="button"
-                role="tab"
-                aria-selected={tab === t.id}
-                onClick={() => setTab(t.id)}
-                className={`h-11 flex-1 border-b-2 text-sm md:flex-none md:px-5 ${
-                  tab === t.id ? 'border-accent font-semibold text-accent-ink' : 'border-transparent font-medium text-muted'
-                }`}
+                onClick={() => setPanel({ type: 'new-checklist' })}
+                className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-dashed border-line-strong text-[15px] font-semibold text-accent-ink hover:bg-surface"
               >
-                {t.label}
-                {count ? ` · ${count}` : ''}
+                <PlusIcon width={18} height={18} />
+                Add checklist
               </button>
-            );
-          })}
+              {(m.updateItem.isError || m.addItems.isError) && (
+                <p role="alert" className="rounded-xl bg-danger-soft px-4 py-3 text-sm text-danger">
+                  {(m.updateItem.error ?? m.addItems.error)?.message}
+                </p>
+              )}
+            </main>
+          )}
         </div>
       </div>
-
-      {tab === 'notes' && <NotesTab projectId={p.id} />}
-      {tab === 'files' && <FilesTab projectId={p.id} />}
-      {tab === 'checklists' && (
-      <main className="flex flex-1 flex-col gap-3.5 px-4 pt-4 pb-10 md:px-8">
-        {p.checklists.length === 0 && (
-          <p className="rounded-2xl border border-dashed border-line bg-surface px-5 py-8 text-center text-sm text-muted">
-            No checklists yet. Add one for things to buy, questions to clarify or steps to do.
-          </p>
-        )}
-        {p.checklists.map((c) => (
-          <ChecklistCard
-            key={c.id}
-            checklist={c}
-            onAddItems={(items) => m.addItems.mutate({ checklistId: c.id, items })}
-            onToggle={(itemId, state) => m.updateItem.mutate({ id: itemId, state })}
-            onMove={(itemId, position) => m.updateItem.mutate({ id: itemId, position })}
-            onOpenItem={(itemId) => setPanel({ type: 'item', id: itemId })}
-            onEdit={() => setPanel({ type: 'checklist', id: c.id })}
-          />
-        ))}
-        <button
-          type="button"
-          onClick={() => setPanel({ type: 'new-checklist' })}
-          className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-dashed border-line-strong text-[15px] font-semibold text-accent-ink hover:bg-surface"
-        >
-          <PlusIcon width={18} height={18} />
-          Add checklist
-        </button>
-        {(m.updateItem.isError || m.addItems.isError) && (
-          <p role="alert" className="rounded-xl bg-danger-soft px-4 py-3 text-sm text-danger">
-            {(m.updateItem.error ?? m.addItems.error)?.message}
-          </p>
-        )}
-      </main>
-      )}
-    </div>
-    <ProjectProperties project={p} onChange={(patch) => m.updateProject.mutate(patch)} />
 
       {item && <ItemSheet projectId={p.id} item={item} checklists={p.checklists} mutations={m} onClose={close} />}
       {editing && (
@@ -237,6 +289,7 @@ function ProjectView({ project: p, navigate, backLink }: { project: ProjectDetai
       )}
       {panel?.type === 'new-checklist' && <ChecklistSheet onSave={(data) => m.createChecklist.mutate(data)} onClose={close} />}
       {panel?.type === 'details' && <DetailsSheet project={p} onSave={(patch) => m.updateProject.mutate(patch)} onClose={close} />}
+      {panel?.type === 'look' && <LookSheet project={p} onChange={(patch) => m.updateProject.mutate(patch)} onClose={close} />}
       {panel?.type === 'actions' && (
         <ActionsSheet
           project={p}

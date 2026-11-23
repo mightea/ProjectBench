@@ -26,6 +26,7 @@ export const projects = sqliteTable(
     dueDate: text('due_date'),
     startDate: text('start_date'),
     color: text('color'),
+    icon: text('icon'),
     coverAttachmentId: text('cover_attachment_id'),
     sortKey: text('sort_key').notNull(),
     completedAt: text('completed_at'),

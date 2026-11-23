@@ -1,6 +1,7 @@
 import type { ChecklistItem, ChecklistKind, ItemLink, ItemState } from '@projectbench/core/schemas';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import type { KeyboardEventHandler } from 'react';
 import { BoxIcon, CheckIcon, ExternalIcon, GripIcon } from '../components/icons.tsx';
 import { dueTone, dueToneClass, formatDue, formatPrice, formatQuantity } from '../lib/format.ts';
 
@@ -57,24 +58,34 @@ export function LinkChips({ links }: { links: ItemLink[] }) {
   );
 }
 
+export const itemShop = (item: ChecklistItem) => (item.links.find((l) => l.preferred) ?? item.links[0])?.shop ?? null;
+
 interface Props {
   item: ChecklistItem;
   kind: ChecklistKind;
   onToggle: () => void;
   onOpen: () => void;
+  className?: string;
 }
 
-export function ItemRow({ item, kind, onToggle, onOpen }: Props) {
+export function ItemRow({ item, kind, onToggle, onOpen, className = '' }: Props) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
     id: item.id,
   });
+  // Mouse drag and long-press work on the whole row; the keyboard uses the handle, shown on focus.
+  const { onKeyDown, ...pointerListeners } = listeners ?? {};
   const done = item.state === 'done';
   const pending = item.id.startsWith('pending-');
 
   const meta: string[] = [];
   if (item.state === 'ordered') {
     meta.push(
-      ['Ordered', item.orderRef && `#${item.orderRef}`, item.expectedDate && `arrives ${formatDue(item.expectedDate)}`]
+      [
+        itemShop(item),
+        item.orderedAt ? `ordered ${formatDue(item.orderedAt.slice(0, 10))}` : 'ordered',
+        item.orderRef && `#${item.orderRef}`,
+        item.expectedDate ? `arrives ${formatDue(item.expectedDate)}` : 'no ETA',
+      ]
         .filter(Boolean)
         .join(' · '),
     );
@@ -87,8 +98,9 @@ export function ItemRow({ item, kind, onToggle, onOpen }: Props) {
   return (
     <li
       ref={setNodeRef}
+      {...pointerListeners}
       style={{ transform: CSS.Translate.toString(transform), transition }}
-      className={`flex items-start gap-0.5 border-b border-line-soft bg-surface py-1 pr-1 pl-1 last:border-b-0 ${isDragging ? 'relative z-10 shadow-lg' : ''} ${pending ? 'opacity-60' : ''}`}
+      className={`flex touch-manipulation items-start gap-0.5 border-b border-line-soft bg-surface py-1 pr-3 pl-1 last:border-b-0 [-webkit-touch-callout:none] pointer-coarse:select-none ${isDragging ? 'relative z-10 shadow-lg' : ''} ${pending ? 'opacity-60' : ''} ${className}`}
     >
       <button
         type="button"
@@ -109,10 +121,7 @@ export function ItemRow({ item, kind, onToggle, onOpen }: Props) {
           )}
         </button>
         {meta.map((m) => (
-          <span
-            key={m}
-            className={item.state === 'ordered' ? 'self-start rounded-md bg-warning-soft px-2 py-0.5 text-xs font-semibold text-warning-ink' : 'text-xs text-muted'}
-          >
+          <span key={m} className="text-xs text-muted">
             {m}
           </span>
         ))}
@@ -129,9 +138,9 @@ export function ItemRow({ item, kind, onToggle, onOpen }: Props) {
         type="button"
         ref={setActivatorNodeRef}
         {...attributes}
-        {...listeners}
+        onKeyDown={onKeyDown as KeyboardEventHandler<HTMLButtonElement> | undefined}
         aria-label={`Reorder ${item.text}`}
-        className="flex size-11 shrink-0 cursor-grab touch-none items-center justify-center text-control hover:text-muted active:cursor-grabbing"
+        className="sr-only text-muted focus:not-sr-only focus:flex focus:size-11 focus:shrink-0 focus:items-center focus:justify-center"
       >
         <GripIcon width={18} height={18} />
       </button>

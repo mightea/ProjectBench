@@ -85,6 +85,20 @@ export function useItemState() {
   });
 }
 
+/** Marks a delivery as received. Items that succeed stay received if another one fails. */
+export function useMarkReceived() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (items: { id: string; projectId: string }[]) => {
+      const results = await Promise.allSettled(items.map(({ id }) => api.patch<ChecklistItem>(`/api/items/${id}`, { state: 'done' })));
+      const failed = results.filter((r) => r.status === 'rejected').length;
+      if (failed) throw new Error(`${failed} of ${items.length} items could not be updated`);
+    },
+    onSettled: (_data, _error, items) =>
+      onlineManager.isOnline() ? Promise.all([...new Set(items.map((i) => i.projectId))].map((id) => refresh(qc, id))) : undefined,
+  });
+}
+
 /** Applies a change to the cached project right away; returns a rollback. */
 function optimistic(qc: QueryClient, projectId: string, change: (p: ProjectDetail) => ProjectDetail) {
   const key = projectKey(projectId);
@@ -320,7 +334,14 @@ export function useNoteMutations(projectId: string) {
     onSettled: refreshAll,
   });
   const deleteNote = useMutation({ mutationFn: (id: string) => api.delete(`/api/notes/${id}`), onSettled: refreshAll });
-  const deleteAttachment = useMutation({ mutationFn: (id: string) => api.delete(`/api/attachments/${id}`), onSettled: refreshAll });
+  const deleteAttachment = useMutation({
+    mutationFn: (id: string) => api.delete(`/api/attachments/${id}`),
+    onSettled: () => {
+      refreshAll();
+      // The deleted file may have been the project's cover.
+      void qc.invalidateQueries({ queryKey: projectKey(projectId), exact: true });
+    },
+  });
 
   return { upload, postNote, updateNote, deleteNote, deleteAttachment };
 }
