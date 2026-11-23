@@ -84,7 +84,16 @@ Clients that need stdio, such as Claude Desktop, can use the bridge after `pnpm 
 
 Tools: `list_projects`, `get_project`, `create_project`, `update_project`, `add_items`, `update_item`, `set_item_links`, `add_note`, `get_attachment`, `add_attachment`, `search`, `agenda`, `shopping_list` and `open_questions`. Projects can be named by id or title. Claude can't delete projects, checklists, items or files, and its changes are logged with the actor `mcp`. `add_attachment` takes base64 or a public URL; it refuses private and local network addresses.
 
-A custom connector in the Claude phone app needs public HTTPS and OAuth, which ProjectBench doesn't offer yet.
+### Connecting with OAuth (claude.ai and other MCP clients)
+
+With `PUBLIC_URL` set to a public `https://` address, ProjectBench is its own OAuth 2.1 authorization server. Add `https://projectbench.example.com/mcp` as a custom connector, then sign in and approve the app. No token needs to be copied.
+
+- The server must be reachable from the client. For claude.ai, that means from the public internet (Anthropic connects from `160.79.104.0/21`), including `/mcp`, `/oauth/*` and `/.well-known/*`.
+- Supports discovery (RFC 9728, RFC 8414), PKCE with S256, resource-bound tokens (RFC 8707), rotating refresh tokens, dynamic client registration and client metadata documents.
+- Access tokens last one hour. Connections stay active for 90 days after their last refresh.
+- See and disconnect apps under **Settings → Connected apps**.
+
+The `pb_` tokens above keep working.
 
 ## Releases
 

@@ -123,6 +123,30 @@ function nameFrom(res: IncomingMessage, url: URL): string {
   }
 }
 
+/** Fetches a small JSON document from a public HTTPS URL. Redirects are not followed. */
+export async function fetchPublicJson(address: string, maxBytes = 16_384, timeoutMs = 5_000): Promise<unknown> {
+  const url = new URL(address);
+  const host = url.hostname.replace(/^\[|\]$/g, '').toLowerCase();
+  if (url.protocol !== 'https:' || url.username || url.password) throw refused();
+  if (host === 'localhost' || host.endsWith('.localhost') || (isIP(host) && !isPublicAddress(host))) throw refused();
+  const res = await open(url, AbortSignal.timeout(timeoutMs));
+  if (res.statusCode !== 200) {
+    res.resume();
+    throw new InvalidOperationError(`The server answered with status ${res.statusCode}`);
+  }
+  const chunks: Buffer[] = [];
+  let size = 0;
+  for await (const chunk of res as AsyncIterable<Buffer>) {
+    size += chunk.length;
+    if (size > maxBytes) {
+      res.destroy();
+      throw new InvalidOperationError('The document is too large');
+    }
+    chunks.push(chunk);
+  }
+  return JSON.parse(Buffer.concat(chunks).toString('utf8'));
+}
+
 /** Downloads a public http(s) URL. Private and local addresses are refused, also after redirects. */
 export async function fetchPublicUrl(address: string): Promise<{ bytes: Buffer; filename: string }> {
   const signal = AbortSignal.timeout(TIMEOUT_MS);

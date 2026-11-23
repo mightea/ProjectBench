@@ -167,6 +167,21 @@ export type ApiTokenCreate = z.input<typeof apiTokenCreateSchema>;
 export type PasskeyCreate = z.input<typeof passkeyCreateSchema>;
 export type ItemLinksSet = z.input<typeof itemLinksSetSchema>;
 
+/** An app connected through OAuth. */
+export interface OAuthConnection {
+  id: string;
+  name: string;
+  redirectHost: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+}
+
+/** What the consent screen shows. */
+export interface OAuthRequestInfo {
+  clientName: string;
+  redirectHost: string;
+}
+
 export interface Passkey {
   id: string;
   name: string;

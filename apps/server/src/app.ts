@@ -11,11 +11,14 @@ import {
   hasPassword,
   MAX_UPLOAD_BYTES,
   MIN_PASSWORD_LENGTH,
+  oauthIssuerFor,
   relyingPartyFor,
   SESSION_TTL_DAYS,
   setPassword,
   validateApiToken,
+  validateOAuthAccessToken,
   validateSession,
+  type ClientMetadataFetcher,
   type Db,
 } from '@projectbench/core';
 import { sql } from 'drizzle-orm';
@@ -28,6 +31,7 @@ import { z } from 'zod';
 import { VERSION, type Config } from './config.ts';
 import { fileRoutes } from './files.ts';
 import { handleMcpRequest } from './mcp.ts';
+import { mcpChallenge, oauthApiRoutes, oauthRoutes, PendingAuthorizations } from './oauth.ts';
 import { ChallengeStore, passkeyLoginRoutes, passkeyRoutes, type PasskeyDeps } from './passkeys.ts';
 import { FailureLimiter } from './rate-limit.ts';
 import { apiRoutes } from './routes.ts';
@@ -40,9 +44,11 @@ export interface AppDeps {
   db: Db;
   config: Pick<Config, 'secureCookies' | 'webDist'> & Partial<Pick<Config, 'filesDir' | 'publicUrl'>>;
   limiter?: FailureLimiter;
+  /** Replaces the network fetch of OAuth client metadata in tests. */
+  fetchClientMetadata?: ClientMetadataFetcher;
 }
 
-export function createApp({ db, config, limiter = new FailureLimiter() }: AppDeps) {
+export function createApp({ db, config, limiter = new FailureLimiter(), fetchClientMetadata }: AppDeps) {
   const app = new Hono();
   const files = config.filesDir ? new FileStore(config.filesDir) : undefined;
   const publicOrigin = config.publicUrl ? new URL(config.publicUrl).origin : undefined;
@@ -97,6 +103,8 @@ export function createApp({ db, config, limiter = new FailureLimiter() }: AppDep
     clientKey,
     startSession,
   };
+  const oauth = oauthIssuerFor(config.publicUrl);
+  const pendingAuthorizations = new PendingAuthorizations();
 
   // --- Public endpoints -----------------------------------------------------
 
@@ -163,6 +171,7 @@ export function createApp({ db, config, limiter = new FailureLimiter() }: AppDep
 
   app.get('/api/session', (c) => c.json({ authenticated: true }));
   app.route('/api/passkeys', passkeyRoutes(passkeyDeps));
+  app.route('/api/oauth', oauthApiRoutes(db, oauth, pendingAuthorizations));
   app.route('/api', apiRoutes(db, files));
 
   app.all('/api/*', (c) => c.json({ error: 'Not found' }, 404));
@@ -176,12 +185,21 @@ export function createApp({ db, config, limiter = new FailureLimiter() }: AppDep
   app.route('/files', fileRoutes({ db, actor: 'app', files }));
   app.all('/files/*', (c) => c.json({ error: 'Not found' }, 404));
 
+  // --- OAuth for MCP clients; only with an HTTPS public address -----------------
+
+  if (oauth) {
+    app.route('/', oauthRoutes({ db, issuer: oauth, pending: pendingAuthorizations, clientKey, fetchClientMetadata }));
+  }
+  app.all('/.well-known/*', (c) => c.json({ error: 'Not found' }, 404));
+  app.all('/oauth/*', (c) => c.json({ error: 'Not found' }, 404));
+
   // --- MCP: bearer token only, session cookies are not accepted ----------------
 
   app.use('/mcp', async (c, next) => {
     const [scheme, token] = c.req.header('authorization')?.split(' ') ?? [];
-    if (scheme?.toLowerCase() !== 'bearer' || !validateApiToken(db, token)) {
-      c.header('WWW-Authenticate', 'Bearer');
+    const bearer = scheme?.toLowerCase() === 'bearer' ? token : undefined;
+    if (!validateApiToken(db, bearer) && !(oauth && validateOAuthAccessToken(db, bearer, oauth.resource))) {
+      c.header('WWW-Authenticate', mcpChallenge(oauth, !!bearer));
       return c.json({ error: 'Invalid or missing token' }, 401);
     }
     await next();

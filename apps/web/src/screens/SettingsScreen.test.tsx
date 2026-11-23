@@ -28,6 +28,7 @@ function renderScreen() {
       if (url.startsWith('/api/auth/state')) {
         return json({ passwordSet: true, authenticated: true, minPasswordLength: 10, hasPasskeys: true, passkeyOrigins: [window.location.origin] });
       }
+      if (url.startsWith('/api/oauth/connections')) return json({ endpoint: 'https://bench.example.com/mcp', connections: [] });
       if (url.startsWith('/api/passkeys')) return json([{ id: 'k1', name: 'iPhone', backedUp: true, createdAt: '2026-11-22T10:00:00Z', lastUsedAt: null }]);
       return json([existing]);
     }),
