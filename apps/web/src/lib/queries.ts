@@ -1,10 +1,13 @@
 import type {
+  Agenda,
   Attachment,
+  BuyOverview,
   Checklist,
   ChecklistCreate,
   ChecklistItem,
   ChecklistUpdate,
   ItemCreate,
+  ItemState,
   ItemUpdate,
   LinkCreate,
   LinkUpdate,
@@ -14,8 +17,9 @@ import type {
   ProjectDetail,
   ProjectSummary,
   ProjectUpdate,
+  SearchHit,
 } from '@projectbench/core/schemas';
-import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
+import { onlineManager, useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { api } from '../api.ts';
 import { prepareUpload } from './upload.ts';
 
@@ -45,9 +49,38 @@ export function useTags() {
   return useQuery({ queryKey: ['tags'], queryFn: () => api.get<{ name: string; projects: number }[]>('/api/tags') });
 }
 
+export function useAgenda() {
+  return useQuery({ queryKey: ['agenda'], queryFn: () => api.get<Agenda>('/api/agenda') });
+}
+
+export function useBuyOverview() {
+  return useQuery({ queryKey: ['buy'], queryFn: () => api.get<BuyOverview>('/api/buy') });
+}
+
+export function useSearch(query: string) {
+  return useQuery({
+    queryKey: ['search', query],
+    queryFn: () => api.get<SearchHit[]>(`/api/search?q=${encodeURIComponent(query)}`),
+    enabled: query.length > 0,
+    placeholderData: (prev) => prev,
+  });
+}
+
 function refresh(qc: QueryClient, projectId: string) {
-  void qc.invalidateQueries({ queryKey: projectKey(projectId) });
-  void qc.invalidateQueries({ queryKey: ['projects'] });
+  return Promise.all(
+    [projectKey(projectId), ['projects'], ['agenda'], ['buy'], ['search']].map((queryKey) => qc.invalidateQueries({ queryKey })),
+  );
+}
+
+/** Moves an item to its next state from a cross-project list such as Today or Buy. */
+export function useItemState() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, state }: { id: string; projectId: string; state: ItemState }) =>
+      api.patch<ChecklistItem>(`/api/items/${id}`, { state }),
+    // Keeps the row busy until the lists are fresh; offline there is nothing to wait for.
+    onSettled: (_data, _error, { projectId }) => (onlineManager.isOnline() ? refresh(qc, projectId) : undefined),
+  });
 }
 
 /** Applies a change to the cached project right away; returns a rollback. */
@@ -63,7 +96,11 @@ const mapItems = (p: ProjectDetail, fn: (lists: Checklist[]) => Checklist[]): Pr
 
 export function useProjectMutations(projectId: string) {
   const qc = useQueryClient();
-  const done = { onSettled: () => refresh(qc, projectId) };
+  const done = {
+    onSettled: () => {
+      void refresh(qc, projectId);
+    },
+  };
 
   const updateProject = useMutation({
     mutationFn: (patch: ProjectUpdate) => api.patch<ProjectDetail>(`/api/projects/${projectId}`, patch),

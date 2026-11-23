@@ -1,3 +1,5 @@
+import { setServerReachable } from './lib/connection.ts';
+
 export class ApiError extends Error {
   constructor(
     public readonly status: number,
@@ -7,8 +9,20 @@ export class ApiError extends Error {
   }
 }
 
+/** Fetches and records whether the server answered. */
+async function send(path: string, init: RequestInit): Promise<Response> {
+  try {
+    const res = await fetch(path, init);
+    setServerReachable(true);
+    return res;
+  } catch {
+    setServerReachable(false);
+    throw new ApiError(0, 'You’re offline, so this can’t be saved or loaded right now.');
+  }
+}
+
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
-  const res = await fetch(path, {
+  const res = await send(path, {
     method,
     credentials: 'same-origin',
     headers: { 'content-type': 'application/json', accept: 'application/json' },
@@ -19,7 +33,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 
 /** Sends a multipart form; the browser sets the content type and boundary. */
 async function upload<T>(path: string, form: FormData): Promise<T> {
-  const res = await fetch(path, { method: 'POST', credentials: 'same-origin', headers: { accept: 'application/json' }, body: form });
+  const res = await send(path, { method: 'POST', credentials: 'same-origin', headers: { accept: 'application/json' }, body: form });
   return parse<T>(res);
 }
 

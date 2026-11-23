@@ -1,4 +1,4 @@
-import type { ChecklistItem, ChecklistKind, ItemState } from '@projectbench/core/schemas';
+import type { ChecklistItem, ChecklistKind, ItemLink, ItemState } from '@projectbench/core/schemas';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { BoxIcon, CheckIcon, ExternalIcon, GripIcon } from '../components/icons.tsx';
@@ -9,7 +9,7 @@ export function nextState(kind: ChecklistKind, state: ItemState): ItemState {
   return state === 'done' ? 'open' : 'done';
 }
 
-const actionLabel = (kind: ChecklistKind, state: ItemState) => {
+export const actionLabel = (kind: ChecklistKind, state: ItemState) => {
   const next = nextState(kind, state);
   if (next === 'ordered') return 'Mark as ordered';
   if (next === 'done') return kind === 'buy' ? 'Mark as received' : kind === 'clarify' ? 'Mark as answered' : 'Mark as done';
@@ -32,6 +32,29 @@ export function StateMark({ state }: { state: ItemState }) {
     );
   }
   return <span className="size-[22px] rounded-full border-2 border-[#A7ACB8]" />;
+}
+
+export function LinkChips({ links }: { links: ItemLink[] }) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {links.map((l) => (
+        <a
+          key={l.id}
+          href={l.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`flex h-[30px] items-center gap-1.5 rounded-full border px-2.5 text-xs ${
+            l.preferred ? 'border-accent bg-accent-soft' : 'border-line bg-surface'
+          }`}
+        >
+          <span className="font-semibold">{l.shop ?? 'Link'}</span>
+          {l.price !== null && <span className="text-muted">{formatPrice(l.price, l.currency)}</span>}
+          <ExternalIcon width={11} height={11} className="text-muted" />
+          <span className="sr-only">(opens in a new tab)</span>
+        </a>
+      ))}
+    </div>
+  );
 }
 
 interface Props {
@@ -99,26 +122,7 @@ export function ItemRow({ item, kind, onToggle, onOpen }: Props) {
             {item.note}
           </button>
         )}
-        {showLinks && (
-          <div className="flex flex-wrap gap-1.5">
-            {item.links.map((l) => (
-              <a
-                key={l.id}
-                href={l.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`flex h-[30px] items-center gap-1.5 rounded-full border px-2.5 text-xs ${
-                  l.preferred ? 'border-accent bg-accent-soft' : 'border-line bg-surface'
-                }`}
-              >
-                <span className="font-semibold">{l.shop ?? 'Link'}</span>
-                {l.price !== null && <span className="text-muted">{formatPrice(l.price, l.currency)}</span>}
-                <ExternalIcon width={11} height={11} className="text-muted" />
-                <span className="sr-only">(opens in a new tab)</span>
-              </a>
-            ))}
-          </div>
-        )}
+        {showLinks && <LinkChips links={item.links} />}
       </div>
 
       <button

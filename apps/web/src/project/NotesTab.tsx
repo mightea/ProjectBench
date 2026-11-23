@@ -2,6 +2,7 @@ import type { Note } from '@projectbench/core/schemas';
 import { useId, useState, type FormEvent } from 'react';
 import { ArrowUpIcon, CloseIcon, DotsIcon, PinIcon } from '../components/icons.tsx';
 import { inputClass, Sheet } from '../components/Sheet.tsx';
+import { QueryFallback } from '../components/QueryFallback.tsx';
 import { UploadError, useNoteMutations, useNotes } from '../lib/queries.ts';
 import { formatTimestamp } from '../lib/upload.ts';
 import { AttachmentList, FilePickers } from './Attachments.tsx';
@@ -16,12 +17,7 @@ export function NotesTab({ projectId }: { projectId: string }) {
   return (
     <>
       <main className="flex flex-1 flex-col gap-3 px-4 pt-4 pb-4 md:px-8">
-        {notes.isPending && <p className="text-muted">Loading…</p>}
-        {notes.isError && (
-          <p role="alert" className="text-danger">
-            {notes.error.message}
-          </p>
-        )}
+        {!notes.data && <QueryFallback query={notes} />}
         {notes.data?.length === 0 && (
           <p className="rounded-2xl border border-dashed border-line bg-surface px-5 py-8 text-center text-sm text-muted">
             No notes yet. Write down decisions, measurements or progress, and add photos.

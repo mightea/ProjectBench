@@ -29,6 +29,18 @@ export default defineConfig({
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//, /^\/files\//, /^\/mcp/],
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        // Thumbnails seen online stay readable offline. Full files are not kept on the device.
+        runtimeCaching: [
+          {
+            urlPattern: ({ sameOrigin, url }) => sameOrigin && /^\/files\/[^/]+\/thumb$/.test(url.pathname),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'projectbench-thumbnails',
+              cacheableResponse: { statuses: [200] },
+              expiration: { maxEntries: 500, maxAgeSeconds: 30 * 24 * 60 * 60, purgeOnQuotaError: true },
+            },
+          },
+        ],
       },
     }),
   ],
