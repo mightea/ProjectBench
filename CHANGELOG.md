@@ -1,5 +1,19 @@
 # Changelog
 
+## [2026.11.8](https://github.com/mightea/ProjectBench/compare/2026.11.7...2026.11.8) (2026-11-23)
+
+
+### ✨ Features
+
+* add OAuth for MCP clients ([#20](https://github.com/mightea/ProjectBench/issues/20)) ([58f7458](https://github.com/mightea/ProjectBench/commit/58f7458e4ef18e0038783aef940d21773f03d76d))
+* add passkey sign-in ([#19](https://github.com/mightea/ProjectBench/issues/19)) ([1913920](https://github.com/mightea/ProjectBench/commit/191392028eff17965e21dda78dc62f774e727004))
+
+
+### 🐛 Bug Fixes
+
+* move project properties into the edit sheet ([8d6624e](https://github.com/mightea/ProjectBench/commit/8d6624ed7c6de222e20b5ab7ac8b36aab0d52404))
+* remove theme toggle from the sidebar ([4ce426a](https://github.com/mightea/ProjectBench/commit/4ce426a71c86d0df549af14f6bc780a56eb3c599))
+
 ## [2026.11.7](https://github.com/mightea/ProjectBench/compare/2026.11.6...2026.11.7) (2026-11-23)
 
 
