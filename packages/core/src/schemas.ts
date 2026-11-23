@@ -143,6 +143,10 @@ export const apiTokenCreateSchema = z.object({
   name: trimmed(80),
 });
 
+export const passkeyCreateSchema = z.object({
+  name: trimmed(80),
+});
+
 export const itemLinksSetSchema = z
   .object({
     /** Replaces all links of the item. Cannot be combined with add or remove. */
@@ -160,7 +164,17 @@ export const itemLinksSetSchema = z
 export type NoteCreate = z.input<typeof noteCreateSchema>;
 export type NoteUpdate = z.input<typeof noteUpdateSchema>;
 export type ApiTokenCreate = z.input<typeof apiTokenCreateSchema>;
+export type PasskeyCreate = z.input<typeof passkeyCreateSchema>;
 export type ItemLinksSet = z.input<typeof itemLinksSetSchema>;
+
+export interface Passkey {
+  id: string;
+  name: string;
+  /** Synced to the device maker's cloud, so it survives losing the device. */
+  backedUp: boolean;
+  createdAt: string;
+  lastUsedAt: string | null;
+}
 
 export interface ApiToken {
   id: string;

@@ -59,4 +59,7 @@ export interface AuthState {
   passwordSet: boolean;
   authenticated: boolean;
   minPasswordLength: number;
+  hasPasskeys: boolean;
+  /** Addresses passkeys work at; empty if the server has no HTTPS domain configured. */
+  passkeyOrigins: string[];
 }

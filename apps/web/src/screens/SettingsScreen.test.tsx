@@ -25,6 +25,10 @@ function renderScreen() {
       calls.push({ method, url });
       if (method === 'POST') return json({ ...existing, id: 't2', name: 'Phone', token: 'pb_secret-value' }, 201);
       if (method === 'DELETE') return new Response(null, { status: 204 });
+      if (url.startsWith('/api/auth/state')) {
+        return json({ passwordSet: true, authenticated: true, minPasswordLength: 10, hasPasskeys: true, passkeyOrigins: [window.location.origin] });
+      }
+      if (url.startsWith('/api/passkeys')) return json([{ id: 'k1', name: 'iPhone', backedUp: true, createdAt: '2026-11-22T10:00:00Z', lastUsedAt: null }]);
       return json([existing]);
     }),
   );
@@ -43,6 +47,22 @@ afterEach(() => {
 });
 
 describe('SettingsScreen', () => {
+  it('lists passkeys and offers adding one where they work', async () => {
+    vi.stubGlobal('PublicKeyCredential', function PublicKeyCredential() {});
+    renderScreen();
+    expect(await screen.findByText('iPhone')).toBeTruthy();
+    fireEvent.click(await screen.findByRole('button', { name: 'Add a passkey' }));
+    expect(screen.getByLabelText('Current password')).toBeTruthy();
+  });
+
+  it('asks before removing a passkey', async () => {
+    const calls = renderScreen();
+    fireEvent.click(await screen.findByRole('button', { name: 'Remove iPhone' }));
+    expect(calls.some((c) => c.method === 'DELETE')).toBe(false);
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm removing iPhone' }));
+    await waitFor(() => expect(calls).toContainEqual({ method: 'DELETE', url: '/api/passkeys/k1' }));
+  });
+
   it('shows a new token once and hides it after Done', async () => {
     renderScreen();
     await screen.findByText('Laptop');

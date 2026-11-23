@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { api, type AuthState } from './api.ts';
 import { Logo } from './components/Logo.tsx';
 import { clearOfflineData } from './lib/offline.ts';
+import { passkeysUsable } from './lib/passkeys.ts';
 import { AuthScreen } from './screens/AuthScreen.tsx';
 import { Shell } from './screens/Shell.tsx';
 
@@ -39,7 +40,13 @@ export function App() {
   }
 
   if (!auth.data.authenticated) {
-    return <AuthScreen mode={auth.data.passwordSet ? 'login' : 'setup'} minLength={auth.data.minPasswordLength} />;
+    return (
+      <AuthScreen
+        mode={auth.data.passwordSet ? 'login' : 'setup'}
+        minLength={auth.data.minPasswordLength}
+        offerPasskey={auth.data.hasPasskeys && passkeysUsable(auth.data)}
+      />
+    );
   }
 
   return <Shell />;
