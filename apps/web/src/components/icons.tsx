@@ -207,3 +207,10 @@ export const MonitorIcon = (p: SVGProps<SVGSVGElement>) => (
     <path d="M8 21h8M12 17v4" />
   </svg>
 );
+
+/** A branch off a project: marks sub-projects. */
+export const SubprojectIcon = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base} strokeWidth={2} {...p}>
+    <path d="M6 4v7a4 4 0 0 0 4 4h9M15 11l4 4-4 4" />
+  </svg>
+);

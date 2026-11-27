@@ -48,6 +48,10 @@ export function Shell() {
   const backTo = useRef('/projects');
   const toBuy = projects.data?.reduce((n, p) => n + p.kinds.buy.total - p.kinds.buy.done - p.kinds.buy.ordered, 0) ?? 0;
   const sidebarTags = allTags ? tags.data : tags.data?.slice(0, SIDEBAR_TAGS);
+  // Sub-projects follow their parent, indented.
+  const sidebarProjects = projects.data?.flatMap((p) =>
+    p.parentId && projects.data.some((o) => o.id === p.parentId) ? [] : [p, ...projects.data.filter((c) => c.parentId === p.id)],
+  );
 
   useEffect(() => {
     if (path === '/' || path === '') {
@@ -145,18 +149,19 @@ export function Shell() {
                 <PlusIcon width={16} height={16} />
               </button>
             </div>
-            {projects.data?.map((p) => {
+            {sidebarProjects?.map((p) => {
               const to = `/projects/${p.id}`;
               const current = projectMatch?.[1] === p.id;
+              const sub = p.parentId !== null && sidebarProjects.some((o) => o.id === p.parentId);
               return (
                 <a
                   key={p.id}
                   href={to}
                   onClick={go(to)}
                   aria-current={current ? 'page' : undefined}
-                  className={`flex min-h-10 shrink-0 items-center gap-2.5 rounded-lg px-2.5 text-sm ${current ? 'bg-accent-soft font-semibold' : 'font-medium hover:bg-ground'}`}
+                  className={`flex shrink-0 items-center gap-2.5 rounded-lg px-2.5 text-sm ${sub ? 'min-h-9 pl-7' : 'min-h-10'} ${current ? 'bg-accent-soft font-semibold' : 'font-medium hover:bg-ground'}`}
                 >
-                  <ProjectTile project={p} size={22} />
+                  <ProjectTile project={p} size={sub ? 18 : 22} />
                   <span className="min-w-0 flex-1 truncate">{p.title}</span>
                   <span className="text-[11px] text-muted">{p.progress.total ? `${p.progress.done}/${p.progress.total}` : STATUS_META[p.status].label}</span>
                 </a>

@@ -279,3 +279,41 @@ describe('project overview fields', () => {
     expect(() => updateProject(ctx, project.id, { color: 'neon' as 'teal' })).toThrow();
   });
 });
+
+describe('sub-projects', () => {
+  it('creates a sub-project with the parent’s look and tags, listed on the parent', () => {
+    const parent = createProject(ctx, { title: 'Motometer', color: 'violet', icon: 'chip', tags: ['moto'] });
+    const sub = createProject(ctx, { title: 'First test PCB', parentId: parent.id });
+    expect(sub).toMatchObject({ parentId: parent.id, color: 'violet', icon: 'chip', tags: ['moto'], subprojects: [] });
+    expect(sub.parent).toEqual({ id: parent.id, title: 'Motometer', status: 'planned', color: 'violet', icon: 'chip' });
+
+    const own = createProject(ctx, { title: 'Second PCB', parentId: parent.id, color: 'teal', tags: [] });
+    expect(own).toMatchObject({ color: 'teal', tags: [] });
+
+    const detail = getProject(ctx, parent.id);
+    expect(detail.parent).toBeNull();
+    expect(detail.subprojects.map((s) => s.title).sort()).toEqual(['First test PCB', 'Second PCB']);
+    expect(listProjects(ctx, { parentId: parent.id })).toHaveLength(2);
+  });
+
+  it('keeps sub-projects one level deep', () => {
+    const a = createProject(ctx, { title: 'A' });
+    const b = createProject(ctx, { title: 'B', parentId: a.id });
+    const c = createProject(ctx, { title: 'C' });
+    expect(() => createProject(ctx, { title: 'D', parentId: b.id })).toThrow(InvalidOperationError);
+    expect(() => updateProject(ctx, c.id, { parentId: b.id })).toThrow(InvalidOperationError);
+    expect(() => updateProject(ctx, a.id, { parentId: c.id })).toThrow(InvalidOperationError);
+    expect(() => updateProject(ctx, c.id, { parentId: c.id })).toThrow(InvalidOperationError);
+    expect(() => updateProject(ctx, c.id, { parentId: 'nope' })).toThrow(NotFoundError);
+  });
+
+  it('moves a project under another and back, and frees sub-projects when the parent is deleted', () => {
+    const a = createProject(ctx, { title: 'A' });
+    const b = createProject(ctx, { title: 'B' });
+    expect(updateProject(ctx, b.id, { parentId: a.id }).parentId).toBe(a.id);
+    expect(updateProject(ctx, b.id, { parentId: null }).parentId).toBeNull();
+    updateProject(ctx, b.id, { parentId: a.id });
+    deleteProject(ctx, a.id);
+    expect(getProject(ctx, b.id).parentId).toBeNull();
+  });
+});

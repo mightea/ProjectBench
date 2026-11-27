@@ -20,6 +20,7 @@ apps/mcp-stdio  stdio bridge to /mcp; never opens the database
 - `packages/core/src/schemas.ts` holds input schemas and API types. It must stay browser-safe (no Node/db imports); the web app imports it via `@projectbench/core/schemas`.
 - Every write runs in a transaction that also updates the FTS `search` table and the `activity` log (`actor: 'app' | 'mcp'`).
 - Manual ordering uses fractional-index `sort_key` strings (`keyAt()` in `services/context.ts`); moves take a `position` index among siblings.
+- Sub-projects: `projects.parent_id`, one level deep (checked in `assertValidParent()`). A sub-project is a full project with its own lists, notes and files; it starts with its parent's color, icon and tags. Deleting a parent frees its sub-projects (`ON DELETE SET NULL`). The overview and sidebar nest them under the parent.
 - Buy items have three states: `open → ordered → done`; `ordered` only on buy lists. Items can have several shop links, one `preferred`.
 
 ## Commands

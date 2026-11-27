@@ -38,6 +38,8 @@ const project = {
   color: null,
   icon: null,
   coverAttachmentId: null,
+  parentId: null,
+  parentTitle: null,
   tags: ['homelab'],
   progress: { total: 2, done: 0, ordered: 1 },
   kinds: { buy: { total: 2, done: 0, ordered: 1 }, clarify: { total: 0, done: 0, ordered: 0 }, todo: { total: 0, done: 0, ordered: 0 } },
@@ -48,6 +50,8 @@ const project = {
   startDate: null,
   completedAt: null,
   createdAt: '2026-11-22T10:00:00Z',
+  parent: null,
+  subprojects: [] as unknown[],
   checklists: [
     {
       id: 'c1',
@@ -220,6 +224,23 @@ describe('App', () => {
     fireEvent.click(within(list).getByRole('button', { name: /1 on the way/ }));
     expect(within(list).getByText(/ordered .*#8142 · no ETA/)).toBeTruthy();
     expect(within(list).getByRole('button', { name: 'Mark as received: JST-XH kit' })).toBeTruthy();
+  });
+
+  it('shows sub-projects inside their parent and links a sub-project to its parent', async () => {
+    const sub = { ...project, id: 'p2', title: 'Order first test PCB', parentId: 'p1', parentTitle: 'Rack fan controller', checklists: [] };
+    const parent = { ...project, subprojects: [sub] };
+    renderApp(signedIn, { '/api/projects/p1': parent, '/api/projects/p2': { ...sub, parent: { id: 'p1', title: 'Rack fan controller', status: 'active', color: null, icon: null } }, '/api/projects': [project, sub] }, '/projects');
+
+    const card = await screen.findByRole('list', { name: 'Sub-projects' });
+    expect(within(card).getByRole('link', { name: /Order first test PCB/ }).getAttribute('href')).toBe('/projects/p2');
+    // Nested in the parent's card, not listed again on its own.
+    expect(screen.getAllByRole('link', { name: /Order first test PCB/ }).filter((l) => !card.contains(l) && !l.closest('nav'))).toEqual([]);
+
+    fireEvent.click(within(card).getByRole('link', { name: /Order first test PCB/ }));
+    const back = await screen.findByRole('link', { name: /Sub-project of Rack fan controller/ });
+    expect(back.getAttribute('href')).toBe('/projects/p1');
+    fireEvent.click(back);
+    expect(await screen.findByRole('region', { name: /Sub-projects · 1/ })).toBeTruthy();
   });
 
   it('edits due date and tags from the edit project sheet', async () => {

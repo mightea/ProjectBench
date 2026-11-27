@@ -1,12 +1,13 @@
 import type { ProjectStatus, ProjectSummary } from '@projectbench/core/schemas';
-import { useId, useState, type MouseEvent } from 'react';
-import { FilterIcon, kindIcon, PlusIcon, SearchIcon, SettingsIcon } from '../components/icons.tsx';
+import { useId, useState, type MouseEvent, type ReactNode } from 'react';
+import { FilterIcon, kindIcon, PlusIcon, SearchIcon, SettingsIcon, SubprojectIcon } from '../components/icons.tsx';
 import { ProjectTile } from '../components/ProjectTile.tsx';
 import { QueryFallback } from '../components/QueryFallback.tsx';
 import { Field, inputClass, Sheet } from '../components/Sheet.tsx';
 import { TagFilter } from '../components/TagFilter.tsx';
 import { dueTone, dueToneClass, formatDue, PRIORITY_META } from '../lib/format.ts';
 import { useProjects } from '../lib/queries.ts';
+import { SubprojectRows } from '../project/Subprojects.tsx';
 import { useTagFilter } from '../useRoute.ts';
 import { NewProjectSheet } from './NewProjectSheet.tsx';
 
@@ -45,7 +46,14 @@ export function ProjectsScreen({ navigate }: { navigate: (to: string) => void })
   const [tag, setTag] = useTagFilter();
   const status = showDone || showArchived ? 'all' : 'open';
   const projects = useProjects({ status, sort, q: q.trim() || undefined, tag: tag ?? undefined });
-  const shown = projects.data?.filter((p) => (p.status !== 'done' || showDone) && (p.status !== 'archived' || showArchived));
+  const visible = projects.data?.filter((p) => (p.status !== 'done' || showDone) && (p.status !== 'archived' || showArchived));
+  // Sub-projects sit inside their parent's card; they stand on their own only when the parent isn't shown.
+  const visibleIds = new Set(visible?.map((p) => p.id));
+  const childrenOf = new Map<string, ProjectSummary[]>();
+  for (const p of visible ?? []) {
+    if (p.parentId && visibleIds.has(p.parentId)) childrenOf.set(p.parentId, [...(childrenOf.get(p.parentId) ?? []), p]);
+  }
+  const shown = visible?.filter((p) => !p.parentId || !visibleIds.has(p.parentId));
   const filtered = Boolean(q || tag || showDone || showArchived);
 
   const open = (id: string) => (e: MouseEvent<HTMLAnchorElement>) => {
@@ -60,7 +68,7 @@ export function ProjectsScreen({ navigate }: { navigate: (to: string) => void })
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-baseline gap-3.5">
             <h1 className="font-display text-[32px] font-semibold tracking-tight">Projects</h1>
-            {shown && <span className="hidden text-sm text-muted xl:inline">{shown.length} shown</span>}
+            {visible && <span className="hidden text-sm text-muted xl:inline">{visible.length} shown</span>}
           </div>
           <div className="flex items-center gap-2">
             <label className="hidden h-11 w-65 items-center gap-2 rounded-[10px] border border-line bg-surface px-3 text-muted xl:flex">
@@ -125,7 +133,7 @@ export function ProjectsScreen({ navigate }: { navigate: (to: string) => void })
             />
           </label>
         )}
-        <TagFilter value={tag} onChange={setTag} allCount={shown?.length} />
+        <TagFilter value={tag} onChange={setTag} allCount={visible?.length} />
       </header>
 
       <main
@@ -169,24 +177,28 @@ export function ProjectsScreen({ navigate }: { navigate: (to: string) => void })
                   <p className="rounded-[14px] border border-dashed border-line-strong px-4 py-5 text-center text-[13px] leading-snug text-muted">Projects waiting on someone else show up here.</p>
                 ) : (
                   <ul className={`grid gap-2.5 md:grid-cols-2 xl:grid-cols-3 ${board ? '2xl:grid-cols-1' : ''}`}>
-                    {members.map((p) => (
-                      <li key={p.id}>
-                        {compact ? (
-                          <>
-                            <div className={board ? '2xl:hidden' : ''}>
-                              <ProjectRow project={p} href={`/projects/${p.id}`} onClick={open(p.id)} />
-                            </div>
-                            {board && (
-                              <div className="hidden h-full 2xl:block">
-                                <ProjectCard project={p} href={`/projects/${p.id}`} onClick={open(p.id)} />
+                    {members.map((p) => {
+                      const subs = childrenOf.get(p.id) ?? [];
+                      const card = (
+                        <ProjectCard project={p} href={`/projects/${p.id}`} onClick={open(p.id)}>
+                          {subs.length > 0 && <SubprojectRows projects={subs} parentStatus={p.status} navigate={navigate} />}
+                        </ProjectCard>
+                      );
+                      return (
+                        <li key={p.id}>
+                          {compact ? (
+                            <>
+                              <div className={board ? '2xl:hidden' : ''}>
+                                <ProjectRow project={p} subprojects={subs.length} href={`/projects/${p.id}`} onClick={open(p.id)} />
                               </div>
-                            )}
-                          </>
-                        ) : (
-                          <ProjectCard project={p} href={`/projects/${p.id}`} onClick={open(p.id)} />
-                        )}
-                      </li>
-                    ))}
+                              {board && <div className="hidden h-full 2xl:block">{card}</div>}
+                            </>
+                          ) : (
+                            card
+                          )}
+                        </li>
+                      );
+                    })}
                   </ul>
                 )}
               </section>
@@ -315,48 +327,67 @@ function NextLine({ project: p }: { project: ProjectSummary }) {
   );
 }
 
-function ProjectCard({ project: p, href, onClick }: { project: ProjectSummary; href: string; onClick: (e: MouseEvent<HTMLAnchorElement>) => void }) {
+interface CardProps {
+  project: ProjectSummary;
+  href: string;
+  onClick: (e: MouseEvent<HTMLAnchorElement>) => void;
+  /** Sub-projects, shown below the card's own content. */
+  children?: ReactNode;
+}
+
+function ProjectCard({ project: p, href, onClick, children }: CardProps) {
   const badge = buyBadge(p);
   const tags = tagLine(p.tags);
   return (
-    <a href={href} onClick={onClick} className="flex h-full flex-col gap-2.5 rounded-2xl border border-line bg-surface p-3.5 hover:border-line-strong">
-      <div className="flex items-center gap-3">
-        <ProjectTile project={p} />
-        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span className="text-base leading-snug font-semibold">{p.title}</span>
-          {tags && <span className="truncate text-xs text-muted">{tags}</span>}
-        </span>
-        {badge && <span className={`rounded-md px-1.5 py-0.5 text-xs font-semibold whitespace-nowrap ${badge.className}`}>{badge.text}</span>}
-      </div>
-      <NextLine project={p} />
-      <div className="mt-auto flex flex-wrap items-center gap-x-3.5 gap-y-1">
-        {METERS.filter((m) => p.kinds[m.kind].total > 0).map((m) => {
-          const counts = p.kinds[m.kind];
-          const Icon = kindIcon[m.kind];
-          return (
-            <span key={m.kind} className="flex items-center gap-1.5 text-xs font-semibold text-ink-soft">
-              <Icon width={14} height={14} strokeWidth={2.2} className={m.icon} />
-              <span className="flex h-1 w-7 overflow-hidden rounded-full bg-line-soft" aria-hidden="true">
-                <span className={m.bar} style={{ width: `${(counts.done / counts.total) * 100}%` }} />
-                <span className="bg-ordered" style={{ width: `${(counts.ordered / counts.total) * 100}%` }} />
+    <div className="flex h-full flex-col rounded-2xl border border-line bg-surface has-[>a:hover]:border-line-strong">
+      <a href={href} onClick={onClick} className="flex flex-1 flex-col gap-2.5 p-3.5">
+        <div className="flex items-center gap-3">
+          <ProjectTile project={p} />
+          <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <span className="text-base leading-snug font-semibold">{p.title}</span>
+            {p.parentTitle ? (
+              <span className="flex items-center gap-1 text-xs text-muted">
+                <SubprojectIcon width={12} height={12} className="shrink-0" />
+                <span className="truncate">Sub-project of {p.parentTitle}</span>
               </span>
-              <span className="sr-only">{m.label}:</span>
-              {counts.done}/{counts.total}
-            </span>
-          );
-        })}
-        {p.dueDate && <span className={`ml-auto text-xs font-medium whitespace-nowrap ${dueToneClass[dueTone(p.dueDate)]}`}>{formatDue(p.dueDate)}</span>}
-      </div>
-    </a>
+            ) : (
+              tags && <span className="truncate text-xs text-muted">{tags}</span>
+            )}
+          </span>
+          {badge && <span className={`rounded-md px-1.5 py-0.5 text-xs font-semibold whitespace-nowrap ${badge.className}`}>{badge.text}</span>}
+        </div>
+        <NextLine project={p} />
+        <div className="mt-auto flex flex-wrap items-center gap-x-3.5 gap-y-1">
+          {METERS.filter((m) => p.kinds[m.kind].total > 0).map((m) => {
+            const counts = p.kinds[m.kind];
+            const Icon = kindIcon[m.kind];
+            return (
+              <span key={m.kind} className="flex items-center gap-1.5 text-xs font-semibold text-ink-soft">
+                <Icon width={14} height={14} strokeWidth={2.2} className={m.icon} />
+                <span className="flex h-1 w-7 overflow-hidden rounded-full bg-line-soft" aria-hidden="true">
+                  <span className={m.bar} style={{ width: `${(counts.done / counts.total) * 100}%` }} />
+                  <span className="bg-ordered" style={{ width: `${(counts.ordered / counts.total) * 100}%` }} />
+                </span>
+                <span className="sr-only">{m.label}:</span>
+                {counts.done}/{counts.total}
+              </span>
+            );
+          })}
+          {p.dueDate && <span className={`ml-auto text-xs font-medium whitespace-nowrap ${dueToneClass[dueTone(p.dueDate)]}`}>{formatDue(p.dueDate)}</span>}
+        </div>
+      </a>
+      {children}
+    </div>
   );
 }
 
-function ProjectRow({ project: p, href, onClick }: { project: ProjectSummary; href: string; onClick: (e: MouseEvent<HTMLAnchorElement>) => void }) {
+function ProjectRow({ project: p, subprojects, href, onClick }: Omit<CardProps, 'children'> & { subprojects: number }) {
   return (
     <a href={href} onClick={onClick} className="flex min-h-11 items-center gap-3 rounded-[14px] border border-line bg-surface px-3.5 py-2.5 hover:border-line-strong">
       <ProjectTile project={p} size={32} />
       <span className="min-w-0 flex-1 truncate text-[15px] font-semibold">{p.title}</span>
       <span className="text-xs whitespace-nowrap text-muted">
+        {subprojects > 0 && `${subprojects} sub · `}
         {p.progress.total} {p.progress.total === 1 ? 'item' : 'items'} · {PRIORITY_META[p.priority]?.short}
       </span>
     </a>

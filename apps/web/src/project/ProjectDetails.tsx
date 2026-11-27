@@ -4,6 +4,7 @@ import { DateField } from '../components/DateField.tsx';
 import { Field, inputClass, Sheet } from '../components/Sheet.tsx';
 import { TagInput } from '../components/TagInput.tsx';
 import { PRIORITY_META, STATUS_META } from '../lib/format.ts';
+import { useProjects } from '../lib/queries.ts';
 
 const StatusOptions = () =>
   PROJECT_STATUSES.map((s) => (
@@ -27,12 +28,18 @@ export function DetailsSheet({ project, onSave, onClose }: { project: ProjectDet
   const [priority, setPriority] = useState(project.priority);
   const [dueDate, setDueDate] = useState(project.dueDate);
   const [tags, setTags] = useState(project.tags);
-  const ids = { title: useId(), description: useId(), status: useId(), priority: useId(), due: useId(), tags: useId() };
+  const [parentId, setParentId] = useState(project.parentId ?? '');
+  const ids = { title: useId(), description: useId(), status: useId(), priority: useId(), due: useId(), tags: useId(), parent: useId() };
+  // Sub-projects are one level deep: only projects that aren't sub-projects themselves can be parents.
+  const all = useProjects({ status: 'all' });
+  const parents = all.data?.filter((c) => c.id !== project.id && !c.parentId && (c.status !== 'archived' || c.id === project.parentId));
+  const isParent = project.subprojects.length > 0;
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
-    onSave({ title, description, status, priority, dueDate, tags });
+    const parentChange = (parentId || null) !== project.parentId ? { parentId: parentId || null } : {};
+    onSave({ title, description, status, priority, dueDate, tags, ...parentChange });
     onClose();
   };
 
@@ -70,6 +77,21 @@ export function DetailsSheet({ project, onSave, onClose }: { project: ProjectDet
         </Field>
         <Field label="Tags" htmlFor={ids.tags} hint="Press Enter or type a comma to add">
           <TagInput id={ids.tags} value={tags} onChange={setTags} />
+        </Field>
+        <Field
+          label="Part of"
+          htmlFor={ids.parent}
+          hint={isParent ? 'It has sub-projects of its own, so it can’t become one.' : 'Makes it a sub-project, shown inside the other project.'}
+        >
+          <select id={ids.parent} value={parentId} onChange={(e) => setParentId(e.target.value)} disabled={isParent || !parents} className={`${inputClass} disabled:opacity-60`}>
+            <option value="">No other project</option>
+            {project.parent && !parents?.some((c) => c.id === project.parent!.id) && <option value={project.parent.id}>{project.parent.title}</option>}
+            {parents?.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.title}
+              </option>
+            ))}
+          </select>
         </Field>
       </form>
     </Sheet>

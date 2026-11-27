@@ -68,9 +68,10 @@ export function useSearch(query: string) {
   });
 }
 
-function refresh(qc: QueryClient, projectId: string) {
+function refresh(qc: QueryClient) {
   return Promise.all(
-    [projectKey(projectId), ['projects'], ['tags'], ['agenda'], ['buy'], ['search']].map((queryKey) => qc.invalidateQueries({ queryKey })),
+    // Every project, not only this one: a parent shows its sub-projects' progress, and a sub-project its parent.
+    [['project'], ['projects'], ['tags'], ['agenda'], ['buy'], ['search']].map((queryKey) => qc.invalidateQueries({ queryKey })),
   );
 }
 
@@ -81,7 +82,7 @@ export function useItemState() {
     mutationFn: ({ id, state }: { id: string; projectId: string; state: ItemState }) =>
       api.patch<ChecklistItem>(`/api/items/${id}`, { state }),
     // Keeps the row busy until the lists are fresh; offline there is nothing to wait for.
-    onSettled: (_data, _error, { projectId }) => (onlineManager.isOnline() ? refresh(qc, projectId) : undefined),
+    onSettled: () => (onlineManager.isOnline() ? refresh(qc) : undefined),
   });
 }
 
@@ -97,15 +98,14 @@ async function patchItems(items: ItemRef[], patch: ItemUpdate) {
   if (failed) throw new Error(`${failed} of ${items.length} items could not be updated`);
 }
 
-const refreshItems = (qc: QueryClient, items: ItemRef[]) =>
-  onlineManager.isOnline() ? Promise.all([...new Set(items.map((i) => i.projectId))].map((id) => refresh(qc, id))) : undefined;
+const refreshItems = (qc: QueryClient) => (onlineManager.isOnline() ? refresh(qc) : undefined);
 
 /** Marks a delivery as received. */
 export function useMarkReceived() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (items: ItemRef[]) => patchItems(items, { state: 'done' }),
-    onSettled: (_data, _error, items) => refreshItems(qc, items),
+    onSettled: () => refreshItems(qc),
   });
 }
 
@@ -114,7 +114,7 @@ export function useUpdateOrder() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ items, patch }: { items: ItemRef[]; patch: Pick<ItemUpdate, 'state' | 'orderRef' | 'expectedDate' | 'paidTotal' | 'paidCurrency'> }) => patchItems(items, patch),
-    onSettled: (_data, _error, { items }) => refreshItems(qc, items),
+    onSettled: () => refreshItems(qc),
   });
 }
 
@@ -133,7 +133,7 @@ export function useProjectMutations(projectId: string) {
   const qc = useQueryClient();
   const done = {
     onSettled: () => {
-      void refresh(qc, projectId);
+      void refresh(qc);
     },
   };
 
@@ -373,6 +373,7 @@ export function useCreateProject() {
     mutationFn: (input: ProjectCreate) => api.post<ProjectDetail>('/api/projects', input),
     onSuccess: (p) => {
       qc.setQueryData(projectKey(p.id), p);
+      if (p.parentId) void qc.invalidateQueries({ queryKey: projectKey(p.parentId) });
       void qc.invalidateQueries({ queryKey: ['projects'] });
       void qc.invalidateQueries({ queryKey: ['tags'] });
     },
