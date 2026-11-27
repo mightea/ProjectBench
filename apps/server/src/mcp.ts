@@ -142,7 +142,8 @@ export function createMcpServer(db: Db, files?: FileStore): McpServer {
       instructions:
         'ProjectBench holds personal projects with checklists (buy, clarify, todo) and notes. Refer to projects by id or title. ' +
         'If a title is ambiguous, the tool lists candidates: pick one or ask the user. Nothing can be deleted through these tools; ' +
-        'archive a project with update_project.',
+        'archive a project with update_project. A project can have sub-projects (one level deep) for a self-contained part of it, ' +
+        'such as ordering a prototype: create one with create_project and parent.',
     },
   );
 
@@ -152,20 +153,24 @@ export function createMcpServer(db: Db, files?: FileStore): McpServer {
     'list_projects',
     {
       title: 'List projects',
-      description: 'Compact list of projects with status, priority, due date and progress. Defaults to open projects.',
+      description:
+        'Compact list of projects with status, priority, due date and progress. Defaults to open projects. ' +
+        'Sub-projects name their parent.',
       inputSchema: {
         status: z.enum([...PROJECT_STATUSES, 'open', 'all']).optional().describe('Defaults to open'),
         tag: z.string().optional(),
         priority: priority.optional(),
         due_before: date.optional().describe('Only projects due on or before this date'),
         query: z.string().optional().describe('Text in the title'),
+        parent: projectRef.optional().describe('Only the sub-projects of this project'),
       },
       annotations: READ_ONLY,
     },
-    ({ status, tag, priority: wanted, due_before, query }) =>
-      run(() =>
-        json(
-          listProjects(ctx, { status, tag, q: query })
+    ({ status, tag, priority: wanted, due_before, query, parent }) =>
+      run(() => {
+        const parentId = parent ? resolveProject(ctx, parent).id : undefined;
+        return json(
+          listProjects(ctx, { status, tag, q: query, parentId })
             .filter((p) => wanted === undefined || p.priority === wanted)
             .filter((p) => due_before === undefined || (p.dueDate !== null && p.dueDate <= due_before))
             .map((p) => ({
@@ -176,9 +181,10 @@ export function createMcpServer(db: Db, files?: FileStore): McpServer {
               due_date: p.dueDate,
               tags: p.tags,
               progress: p.progress,
+              ...(p.parentId ? { parent: { id: p.parentId, title: p.parentTitle } } : {}),
             })),
-        ),
-      ),
+        );
+      }),
   );
 
   server.registerTool(
@@ -276,9 +282,12 @@ export function createMcpServer(db: Db, files?: FileStore): McpServer {
     'create_project',
     {
       title: 'Create project',
-      description: 'Creates a project, optionally with starter checklists and items.',
+      description:
+        'Creates a project, optionally with starter checklists and items. With parent, it becomes a sub-project ' +
+        "and starts with the parent's color, icon and tags.",
       inputSchema: {
         title: z.string().min(1),
+        parent: projectRef.optional().describe('Makes the new project a sub-project of this one'),
         description: z.string().optional(),
         status: z.enum(PROJECT_STATUSES).optional(),
         priority: priority.optional(),
@@ -291,11 +300,11 @@ export function createMcpServer(db: Db, files?: FileStore): McpServer {
       },
       annotations: ADDITIVE,
     },
-    ({ due_date, checklists, ...fields }) =>
+    ({ due_date, checklists, parent, ...fields }) =>
       run(() => {
         const project = createProjectWithChecklists(
           ctx,
-          { ...fields, dueDate: due_date },
+          { ...fields, dueDate: due_date, parentId: parent ? resolveProject(ctx, parent).id : undefined },
           checklists?.map((list) => ({ ...list, items: list.items?.map(toItem) })),
         );
         return text(projectMarkdown(ctx, project.id));
@@ -307,7 +316,8 @@ export function createMcpServer(db: Db, files?: FileStore): McpServer {
     {
       title: 'Update project',
       description:
-        'Changes project fields. Set status to archived to archive it. Null clears a due date, description, color or icon.',
+        'Changes project fields. Set status to archived to archive it. Null clears a due date, description, color or icon. ' +
+        'Set parent to move it under another project, or null to make it a project of its own again.',
       inputSchema: {
         project: projectRef,
         title: z.string().min(1).optional(),
@@ -318,13 +328,15 @@ export function createMcpServer(db: Db, files?: FileStore): McpServer {
         color: z.enum(PROJECT_COLORS).nullable().optional(),
         icon: z.enum(PROJECT_ICONS).nullable().optional(),
         tags: z.array(z.string()).max(20).optional().describe('Replaces all tags'),
+        parent: projectRef.nullable().optional().describe('Project to make this a sub-project of; null detaches it'),
       },
       annotations: UPDATE,
     },
-    ({ project, due_date, ...fields }) =>
+    ({ project, due_date, parent, ...fields }) =>
       run(() => {
         const { id } = resolveProject(ctx, project);
-        updateProject(ctx, id, { ...fields, dueDate: due_date });
+        const parentId = parent === undefined || parent === null ? parent : resolveProject(ctx, parent).id;
+        updateProject(ctx, id, { ...fields, dueDate: due_date, parentId });
         return text(projectMarkdown(ctx, id));
       }),
   );

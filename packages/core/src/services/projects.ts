@@ -16,6 +16,7 @@ import {
   type ProjectCreate,
   type ProjectDetail,
   type ProjectListQuery,
+  type ProjectRef,
   type ProjectSummary,
   type ProjectUpdate,
 } from '../schemas.ts';
@@ -85,7 +86,7 @@ function aggregatesFor(tx: DbLike, projectIds: string[]): Map<string, Aggregates
   return result;
 }
 
-function toSummary(row: ProjectRow, tagNames: string[], agg?: Aggregates): ProjectSummary {
+function toSummary(row: ProjectRow, tagNames: string[], agg?: Aggregates, parentTitle: string | null = null): ProjectSummary {
   return {
     id: row.id,
     title: row.title,
@@ -95,6 +96,8 @@ function toSummary(row: ProjectRow, tagNames: string[], agg?: Aggregates): Proje
     color: row.color,
     icon: row.icon,
     coverAttachmentId: row.coverAttachmentId,
+    parentId: row.parentId,
+    parentTitle,
     tags: tagNames,
     progress: agg?.progress ?? noProgress(),
     kinds: agg?.kinds ?? noKinds(),
@@ -107,6 +110,7 @@ function toSummary(row: ProjectRow, tagNames: string[], agg?: Aggregates): Proje
 export function listProjects(ctx: ServiceContext, query: ProjectListQuery = {}): ProjectSummary[] {
   const q = projectListQuerySchema.parse(query);
   const where: SQL[] = [];
+  if (q.parentId) where.push(eq(projects.parentId, q.parentId));
   if (q.status === 'open') where.push(notInArray(projects.status, ['done', 'archived']));
   else if (q.status !== 'all') where.push(eq(projects.status, q.status));
   if (q.q) {
@@ -142,7 +146,14 @@ export function listProjects(ctx: ServiceContext, query: ProjectListQuery = {}):
   const ids = rows.map((r) => r.id);
   const tagMap = tagsForProjects(ctx.db, ids);
   const aggs = aggregatesFor(ctx.db, ids);
-  return rows.map((r) => toSummary(r, tagMap.get(r.id) ?? [], aggs.get(r.id)));
+  const parentTitles = titlesOf(ctx.db, rows.map((r) => r.parentId).filter((p): p is string => p !== null));
+  return rows.map((r) => toSummary(r, tagMap.get(r.id) ?? [], aggs.get(r.id), r.parentId ? parentTitles.get(r.parentId) : null));
+}
+
+function titlesOf(tx: DbLike, ids: string[]): Map<string, string> {
+  if (ids.length === 0) return new Map();
+  const rows = tx.select({ id: projects.id, title: projects.title }).from(projects).where(inArray(projects.id, [...new Set(ids)])).all();
+  return new Map(rows.map((r) => [r.id, r.title]));
 }
 
 export function getProject(ctx: ServiceContext, id: string): ProjectDetail {
@@ -206,7 +217,14 @@ export function getProject(ctx: ServiceContext, id: string): ProjectDetail {
     items: itemsByList.get(l.id) ?? [],
   }));
 
-  const summary = toSummary(row, tagsForProjects(ctx.db, [id]).get(id) ?? [], aggregatesFor(ctx.db, [id]).get(id));
+  const parent = row.parentId
+    ? (ctx.db
+        .select({ id: projects.id, title: projects.title, status: projects.status, color: projects.color, icon: projects.icon })
+        .from(projects)
+        .where(eq(projects.id, row.parentId))
+        .get() satisfies ProjectRef | undefined)
+    : undefined;
+  const summary = toSummary(row, tagsForProjects(ctx.db, [id]).get(id) ?? [], aggregatesFor(ctx.db, [id]).get(id), parent?.title);
   return {
     ...summary,
     description: row.description,
@@ -214,7 +232,26 @@ export function getProject(ctx: ServiceContext, id: string): ProjectDetail {
     completedAt: row.completedAt,
     createdAt: row.createdAt,
     checklists: checklistsOut,
+    parent: parent ?? null,
+    subprojects: row.parentId ? [] : listProjects(ctx, { status: 'all', parentId: id }),
   };
+}
+
+/**
+ * Checks that `projectId` (or a new project, when undefined) may become a sub-project of `parentId`.
+ * Sub-projects are one level deep: a sub-project can't have its own, and a parent can't become one.
+ */
+function assertValidParent(tx: DbLike, parentId: string, projectId?: string) {
+  if (parentId === projectId) throw new InvalidOperationError('A project can’t be a sub-project of itself');
+  const parent = tx.select({ title: projects.title, parentId: projects.parentId }).from(projects).where(eq(projects.id, parentId)).get();
+  if (!parent) throw new NotFoundError('Project', parentId);
+  if (parent.parentId) {
+    throw new InvalidOperationError(`“${parent.title}” is already a sub-project, and sub-projects can’t have their own`);
+  }
+  if (projectId) {
+    const child = tx.select({ id: projects.id }).from(projects).where(eq(projects.parentId, projectId)).get();
+    if (child) throw new InvalidOperationError('This project has sub-projects of its own, so it can’t become one');
+  }
 }
 
 function siblingKeys(tx: DbLike, priority: number, excludeId?: string): string[] {
@@ -233,6 +270,9 @@ export function createProject(ctx: ServiceContext, input: ProjectCreate): Projec
   const now = nowIso(ctx);
   ctx.db.transaction((tx) => {
     const priority = data.priority ?? 3;
+    // A sub-project starts with its parent's look and tags, so it reads as part of it.
+    const parent = data.parentId ? tx.select().from(projects).where(eq(projects.id, data.parentId)).get() : undefined;
+    if (data.parentId) assertValidParent(tx, data.parentId);
     tx.insert(projects)
       .values({
         id,
@@ -242,15 +282,17 @@ export function createProject(ctx: ServiceContext, input: ProjectCreate): Projec
         priority,
         dueDate: data.dueDate ?? null,
         startDate: data.startDate ?? null,
-        color: data.color ?? null,
-        icon: data.icon ?? null,
+        color: data.color !== undefined ? data.color : (parent?.color ?? null),
+        icon: data.icon !== undefined ? data.icon : (parent?.icon ?? null),
+        parentId: data.parentId ?? null,
         sortKey: keyAt(siblingKeys(tx, priority)),
         completedAt: data.status === 'done' ? now : null,
         createdAt: now,
         updatedAt: now,
       })
       .run();
-    if (data.tags) setProjectTags(tx, id, data.tags);
+    const tagNames = data.tags ?? (parent ? (tagsForProjects(tx, [parent.id]).get(parent.id) ?? []) : undefined);
+    if (tagNames?.length) setProjectTags(tx, id, tagNames);
     indexSearch(tx, {
       entity: 'project',
       entityId: id,
@@ -279,6 +321,7 @@ export function updateProject(ctx: ServiceContext, id: string, input: ProjectUpd
       if (!cover) throw new NotFoundError('Attachment', fields.coverAttachmentId);
       if (!isPreviewableImage(cover.mime)) throw new InvalidOperationError('A cover must be an image');
     }
+    if (fields.parentId) assertValidParent(tx, fields.parentId, id);
 
     const patch: Partial<typeof projects.$inferInsert> = { ...definedOnly(fields), updatedAt: now };
     const priority = fields.priority ?? current.priority;

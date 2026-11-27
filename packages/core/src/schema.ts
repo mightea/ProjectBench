@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { index, integer, primaryKey, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { index, integer, primaryKey, real, sqliteTable, text, type AnySQLiteColumn } from 'drizzle-orm/sqlite-core';
 import { CHECKLIST_KINDS, ITEM_STATES, PROJECT_STATUSES } from './schemas.ts';
 
 /** ISO-8601 timestamp set by SQLite when a row is inserted. */
@@ -28,12 +28,14 @@ export const projects = sqliteTable(
     color: text('color'),
     icon: text('icon'),
     coverAttachmentId: text('cover_attachment_id'),
+    /** Set on a sub-project. Only one level: a sub-project has no sub-projects of its own. */
+    parentId: text('parent_id').references((): AnySQLiteColumn => projects.id, { onDelete: 'set null' }),
     sortKey: text('sort_key').notNull(),
     completedAt: text('completed_at'),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [index('projects_status_priority_idx').on(t.status, t.priority, t.sortKey)],
+  (t) => [index('projects_status_priority_idx').on(t.status, t.priority, t.sortKey), index('projects_parent_idx').on(t.parentId)],
 );
 
 export const checklists = sqliteTable(

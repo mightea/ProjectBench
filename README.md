@@ -4,7 +4,7 @@
 
 A small self-hosted app for personal projects: checklists for things to buy and questions to clarify, notes, photos and files, priorities and due dates. It is built phone-first as an installable web app (PWA), and an MCP server lets Claude read and update projects.
 
-**Status:** phase 5 done, phase 6 shelved. You can manage projects and checklists (to buy, to clarify, to do) with shop links, an ordered state and drag-to-reorder, keep a notes timeline with photos and files, and connect Claude through MCP. Today, Buy and Search give a view across all projects and can be filtered by tag, projects you have opened stay readable offline, and the app has a light and a dark theme.
+**Status:** phase 5 done, phase 6 shelved. You can manage projects and checklists (to buy, to clarify, to do) with shop links, split a self-contained part of a project into a sub-project, an ordered state and drag-to-reorder, keep a notes timeline with photos and files, and connect Claude through MCP. Today, Buy and Search give a view across all projects and can be filtered by tag, projects you have opened stay readable offline, and the app has a light and a dark theme.
 
 ## Stack
 
@@ -82,7 +82,7 @@ Clients that need stdio, such as Claude Desktop, can use the bridge after `pnpm 
 }
 ```
 
-Tools: `list_projects`, `get_project`, `create_project`, `update_project`, `add_items`, `update_item`, `set_item_links`, `add_note`, `get_attachment`, `add_attachment`, `search`, `agenda`, `shopping_list` and `open_questions`. Projects can be named by id or title. Claude can't delete projects, checklists, items or files, and its changes are logged with the actor `mcp`. `add_attachment` takes base64 or a public URL; it refuses private and local network addresses.
+Tools: `list_projects`, `get_project`, `create_project`, `update_project`, `add_items`, `update_item`, `set_item_links`, `add_note`, `get_attachment`, `add_attachment`, `search`, `agenda`, `shopping_list` and `open_questions`. Projects can be named by id or title. `create_project` and `update_project` take a `parent` to make a sub-project, and `list_projects` can list a project's sub-projects. Claude can't delete projects, checklists, items or files, and its changes are logged with the actor `mcp`. `add_attachment` takes base64 or a public URL; it refuses private and local network addresses.
 
 ### Connecting with OAuth (claude.ai and other MCP clients)
 

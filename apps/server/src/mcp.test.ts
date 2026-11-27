@@ -227,3 +227,25 @@ describe('token API', () => {
     expect((await rpc({ authorization: `Bearer ${body.token}` })).status).toBe(401);
   });
 });
+
+describe('sub-projects', () => {
+  it('creates, lists, shows and detaches a sub-project', async () => {
+    await tool('create_project', { title: 'Motometer', tags: ['moto'] });
+    const created = await tool('create_project', { title: 'First test PCB', parent: 'motometer', checklists: [{ kind: 'buy' }] });
+    expect(created.isError, created.text).toBe(false);
+    expect(created.text).toContain('Sub-project of: Motometer');
+
+    const subs = await data<{ title: string; parent: { title: string }; tags: string[] }[]>('list_projects', { parent: 'Motometer' });
+    expect(subs).toEqual([expect.objectContaining({ title: 'First test PCB', parent: expect.objectContaining({ title: 'Motometer' }), tags: ['moto'] })]);
+
+    const parent = await tool('get_project', { project: 'Motometer' });
+    expect(parent.text).toContain('## Sub-projects');
+    expect(parent.text).toContain('First test PCB');
+
+    const nested = await tool('create_project', { title: 'Too deep', parent: 'First test PCB' });
+    expect(nested.isError).toBe(true);
+
+    const detached = await tool('update_project', { project: 'First test PCB', parent: null });
+    expect(detached.text).not.toContain('Sub-project of');
+  });
+});

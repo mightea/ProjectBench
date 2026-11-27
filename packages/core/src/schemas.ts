@@ -42,6 +42,8 @@ export const projectCreateSchema = z.object({
   color: z.enum(PROJECT_COLORS).nullable().optional(),
   icon: z.enum(PROJECT_ICONS).nullable().optional(),
   tags: z.array(trimmed(40)).max(20).optional(),
+  /** Makes this a sub-project of another project; null makes it a project of its own again. */
+  parentId: z.string().min(1).nullable().optional(),
 });
 
 export const projectUpdateSchema = projectCreateSchema.partial().extend({
@@ -113,6 +115,8 @@ export const projectListQuerySchema = z.object({
   tag: z.string().optional(),
   q: z.string().trim().max(200).optional(),
   sort: z.enum(['priority', 'due', 'updated']).default('priority'),
+  /** Only the sub-projects of this project. */
+  parentId: z.string().min(1).optional(),
 });
 
 export type ProjectCreate = z.input<typeof projectCreateSchema>;
@@ -248,6 +252,9 @@ export interface ProjectSummary {
   color: string | null;
   icon: string | null;
   coverAttachmentId: string | null;
+  /** The project this is a sub-project of. */
+  parentId: string | null;
+  parentTitle: string | null;
   tags: string[];
   progress: Progress;
   /** The same counts, per checklist kind. */
@@ -300,12 +307,24 @@ export interface Checklist {
   items: ChecklistItem[];
 }
 
+/** Enough of a project to name and recognise it. */
+export interface ProjectRef {
+  id: string;
+  title: string;
+  status: ProjectStatus;
+  color: string | null;
+  icon: string | null;
+}
+
 export interface ProjectDetail extends ProjectSummary {
   description: string | null;
   startDate: string | null;
   completedAt: string | null;
   createdAt: string;
   checklists: Checklist[];
+  parent: ProjectRef | null;
+  /** All sub-projects, whatever their status. Empty for a sub-project. */
+  subprojects: ProjectSummary[];
 }
 
 export interface ItemWithContext extends ChecklistItem {

@@ -205,7 +205,17 @@ export function projectMarkdown(ctx: ServiceContext, projectId: string): string 
     `- Tags: ${p.tags.length ? p.tags.join(', ') : 'none'}`,
     `- Progress: ${p.progress.done} of ${p.progress.total} done, ${p.progress.ordered} ordered`,
   ];
+  if (p.parent) lines.push(`- Sub-project of: ${p.parent.title} (id: ${p.parent.id})`);
   if (p.description) lines.push('', '## Description', '', p.description);
+  if (p.subprojects.length) {
+    lines.push('', '## Sub-projects', '');
+    for (const sub of p.subprojects) {
+      lines.push(
+        `- ${sub.title} (id: ${sub.id}): ${sub.status}, P${sub.priority}, ${sub.progress.done} of ${sub.progress.total} done` +
+          (sub.dueDate ? `, due ${sub.dueDate}` : ''),
+      );
+    }
+  }
 
   lines.push('', '## Checklists');
   if (p.checklists.length === 0) lines.push('', 'No checklists yet.');

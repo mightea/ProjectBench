@@ -1,7 +1,7 @@
 import type { ProjectDetail } from '@projectbench/core/schemas';
 import { useEffect, useState, type MouseEvent } from 'react';
 import { ApiError } from '../api.ts';
-import { BackIcon, DotsIcon, PencilIcon, PlusIcon } from '../components/icons.tsx';
+import { BackIcon, DotsIcon, PencilIcon, PlusIcon, SubprojectIcon } from '../components/icons.tsx';
 import { LinkedText } from '../components/LinkedText.tsx';
 import { ProjectTile } from '../components/ProjectTile.tsx';
 import { Sheet } from '../components/Sheet.tsx';
@@ -9,6 +9,7 @@ import { dueTone, dueToneClass, formatDue, PRIORITY_META, STATUS_META } from '..
 import { CONTENT_WIDTH, lookStyle, projectColor } from '../lib/look.ts';
 import { QueryFallback } from '../components/QueryFallback.tsx';
 import { useAttachments, useNotes, useProject, useProjectMutations } from '../lib/queries.ts';
+import { NewProjectSheet } from '../screens/NewProjectSheet.tsx';
 import { ChecklistCard } from './ChecklistCard.tsx';
 import { ChecklistSheet } from './ChecklistSheet.tsx';
 import { FilesTab } from './FilesTab.tsx';
@@ -17,6 +18,7 @@ import { LookSheet } from './LookSheet.tsx';
 import { NotesTab } from './NotesTab.tsx';
 import { DetailsSheet } from './ProjectDetails.tsx';
 import { LatestNote, OverviewTiles, UpNext } from './ProjectOverview.tsx';
+import { ParentLink, SubprojectsSection } from './Subprojects.tsx';
 
 /** Tags shown in the header before "+n". */
 const HERO_TAGS = 3;
@@ -36,6 +38,7 @@ type Panel =
   | { type: 'new-checklist' }
   | { type: 'details' }
   | { type: 'look' }
+  | { type: 'new-subproject' }
   | { type: 'actions' };
 
 export interface BackLink {
@@ -137,6 +140,7 @@ function ProjectView({ project: p, navigate, backLink }: { project: ProjectDetai
         </div>
 
         <div className={`mx-auto flex w-full flex-col gap-3 px-5 pt-1.5 md:px-8 ${CONTENT_WIDTH}`}>
+          {p.parent && <ParentLink parent={p.parent} navigate={navigate} />}
           <div className="flex items-center gap-3.5">
             <button type="button" onClick={() => setPanel({ type: 'look' })} aria-label="Change project look" className="shrink-0 rounded-[14px]">
               <ProjectTile project={p} size={52} />
@@ -220,6 +224,7 @@ function ProjectView({ project: p, navigate, backLink }: { project: ProjectDetai
         )}
 
         <div className="flex min-w-0 flex-col gap-3.5 lg:col-start-1 xl:row-start-3 2xl:row-start-2">
+          <SubprojectsSection projects={p.subprojects} navigate={navigate} onNew={() => setPanel({ type: 'new-subproject' })} />
           <div role="tablist" aria-label="Project sections" className="flex rounded-[10px] bg-line p-[3px] md:gap-1 md:rounded-none md:border-b md:border-line md:bg-transparent md:p-0">
             {TABS.map((t) => {
               const count = t.id === 'notes' ? notes.data?.length : t.id === 'files' ? files.data?.length : undefined;
@@ -298,9 +303,12 @@ function ProjectView({ project: p, navigate, backLink }: { project: ProjectDetai
       {panel?.type === 'new-checklist' && <ChecklistSheet onSave={(data) => m.createChecklist.mutate(data)} onClose={close} />}
       {panel?.type === 'details' && <DetailsSheet project={p} onSave={(patch) => m.updateProject.mutate(patch)} onClose={close} />}
       {panel?.type === 'look' && <LookSheet project={p} onChange={(patch) => m.updateProject.mutate(patch)} onClose={close} />}
+      {panel?.type === 'new-subproject' && <NewProjectSheet parent={p} onClose={close} onCreated={(subId) => (close(), navigate(`/projects/${subId}`))} />}
       {panel?.type === 'actions' && (
         <ActionsSheet
           project={p}
+          onNewSubproject={() => setPanel({ type: 'new-subproject' })}
+          onDetach={() => m.updateProject.mutate({ parentId: null })}
           onArchive={() => m.updateProject.mutate({ status: p.status === 'archived' ? 'active' : 'archived' })}
           onDelete={() => m.deleteProject.mutate(undefined, { onSuccess: () => navigate('/projects') })}
           onClose={close}
@@ -312,11 +320,15 @@ function ProjectView({ project: p, navigate, backLink }: { project: ProjectDetai
 
 function ActionsSheet({
   project,
+  onNewSubproject,
+  onDetach,
   onArchive,
   onDelete,
   onClose,
 }: {
   project: ProjectDetail;
+  onNewSubproject: () => void;
+  onDetach: () => void;
   onArchive: () => void;
   onDelete: () => void;
   onClose: () => void;
@@ -325,7 +337,17 @@ function ActionsSheet({
   return (
     <Sheet title={project.title} onClose={onClose}>
       <div className="flex flex-col gap-2 pb-2">
-        <button type="button" onClick={() => (onArchive(), onClose())} className="h-12 rounded-xl border border-line text-[15px] font-semibold" data-autofocus>
+        {project.parent ? (
+          <button type="button" onClick={() => (onDetach(), onClose())} className="h-12 rounded-xl border border-line text-[15px] font-semibold" data-autofocus>
+            Make it a project of its own
+          </button>
+        ) : (
+          <button type="button" onClick={onNewSubproject} className="flex h-12 items-center justify-center gap-2 rounded-xl border border-line text-[15px] font-semibold" data-autofocus>
+            <SubprojectIcon width={18} height={18} />
+            New sub-project
+          </button>
+        )}
+        <button type="button" onClick={() => (onArchive(), onClose())} className="h-12 rounded-xl border border-line text-[15px] font-semibold">
           {project.status === 'archived' ? 'Restore project' : 'Archive project'}
         </button>
         {confirm ? (
@@ -337,7 +359,10 @@ function ActionsSheet({
             Delete project
           </button>
         )}
-        <p className="px-1 pt-1 text-xs text-muted">Archived projects keep everything and can be restored. Deleting can’t be undone.</p>
+        <p className="px-1 pt-1 text-xs text-muted">
+          Archived projects keep everything and can be restored. Deleting can’t be undone
+          {project.subprojects.length > 0 ? '; its sub-projects stay, as projects of their own.' : '.'}
+        </p>
       </div>
     </Sheet>
   );
