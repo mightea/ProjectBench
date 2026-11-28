@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026.11.10](https://github.com/mightea/ProjectBench/compare/2026.11.9...2026.11.10) (2026-11-28)
+
+
+### 🐛 Bug Fixes
+
+* drop cached project data from before sub-projects ([#24](https://github.com/mightea/ProjectBench/issues/24)) ([7ff5f6b](https://github.com/mightea/ProjectBench/commit/7ff5f6b463671914825d30862e1f2de596ffd9e5))
+
 ## [2026.11.9](https://github.com/mightea/ProjectBench/compare/2026.11.8...2026.11.9) (2026-11-28)
 
 
