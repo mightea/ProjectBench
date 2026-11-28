@@ -8,7 +8,7 @@ export function TagFilter({ value, onChange, allCount }: { value: string | null;
   if (names.length === 0) return null;
 
   return (
-    <div role="group" aria-label="Filter by tag" className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-1 md:mx-0 md:flex-wrap md:overflow-visible md:px-0">
+    <div role="group" aria-label="Filter by tag" className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-1 [scrollbar-width:none] md:mx-0 md:flex-wrap md:overflow-visible md:px-0">
       {allCount !== undefined && (
         <button
           type="button"

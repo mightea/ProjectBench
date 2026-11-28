@@ -33,6 +33,12 @@ export function formatDue(iso: string, now = new Date()): string {
   return `${date.getDate()} ${MONTHS[date.getMonth()]}${sameYear ? '' : ` ${date.getFullYear()}`}`;
 }
 
+/** Day and short month, for a calendar tile. */
+export function dayAndMonth(iso: string): { day: number; month: string } {
+  const date = parse(iso);
+  return { day: date.getDate(), month: MONTHS[date.getMonth()]! };
+}
+
 export type DueTone = 'overdue' | 'soon' | 'normal';
 
 export function dueTone(iso: string, now = new Date()): DueTone {
@@ -64,10 +70,10 @@ export const STATUS_META: Record<ProjectStatus, { label: string; dot: string }> 
   archived: { label: 'Archived', dot: 'bg-faint' },
 };
 
-export const KIND_META: Record<ChecklistKind, { label: string; defaultTitle: string; iconClass: string }> = {
-  buy: { label: 'To buy', defaultTitle: 'To buy', iconClass: 'bg-accent-soft text-accent-ink' },
-  clarify: { label: 'To clarify', defaultTitle: 'To clarify', iconClass: 'bg-warning-soft text-warning-ink' },
-  todo: { label: 'To do', defaultTitle: 'To do', iconClass: 'bg-success-soft text-success' },
+export const KIND_META: Record<ChecklistKind, { label: string; defaultTitle: string; iconClass: string; barClass: string }> = {
+  buy: { label: 'To buy', defaultTitle: 'To buy', iconClass: 'bg-accent-soft text-accent-ink', barClass: 'bg-accent' },
+  clarify: { label: 'To clarify', defaultTitle: 'To clarify', iconClass: 'bg-warning-soft text-warning-ink', barClass: 'bg-warning' },
+  todo: { label: 'To do', defaultTitle: 'To do', iconClass: 'bg-success-soft text-success', barClass: 'bg-success' },
 };
 
 export function formatPrice(price: number | null, currency: string | null): string {

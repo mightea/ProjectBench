@@ -59,6 +59,7 @@ export function ChecklistCard({ checklist, onAddItems, onToggle, onMove, onOpenI
   const hiddenOnDesktop = showAll ? 0 : Math.max(0, openItems.length - DESKTOP_LIMIT);
 
   const counts = { done: doneItems.length, ordered: orderedItems.length, open: openItems.length };
+  const share = (n: number) => (checklist.items.length ? `${(n / checklist.items.length) * 100}%` : '0%');
 
   const row = (item: Checklist['items'][number], className?: string) => (
     <ItemRow
@@ -99,8 +100,8 @@ export function ChecklistCard({ checklist, onAddItems, onToggle, onMove, onOpenI
   };
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-line bg-surface" aria-labelledby={`${checklist.id}-title`}>
-      <div className="flex items-center gap-2.5 border-b border-line-soft py-1.5 pr-1.5 pl-3.5">
+    <section className="overflow-hidden rounded-2xl border border-line bg-surface shadow-card" aria-labelledby={`${checklist.id}-title`}>
+      <div className="flex items-center gap-2.5 py-1.5 pr-1.5 pl-3.5">
         <span className={`flex size-[30px] items-center justify-center rounded-lg ${meta.iconClass}`}>
           <Icon width={17} height={17} strokeWidth={2} />
         </span>
@@ -116,6 +117,11 @@ export function ChecklistCard({ checklist, onAddItems, onToggle, onMove, onOpenI
         >
           <DotsIcon width={20} height={20} />
         </button>
+      </div>
+
+      <div className="flex h-1 bg-line-soft" aria-hidden="true">
+        <span className={`meter-fill ${meta.barClass}`} style={{ width: share(counts.done) }} />
+        <span className="meter-fill bg-ordered" style={{ width: share(counts.ordered) }} />
       </div>
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
@@ -137,7 +143,7 @@ export function ChecklistCard({ checklist, onAddItems, onToggle, onMove, onOpenI
               <span className="min-w-0 flex-1 truncate">
                 {orderedItems.length} on the way{shops ? ` · ${shops}` : ''}
               </span>
-              <ChevronDownIcon width={18} height={18} className={showOrdered ? 'rotate-180' : ''} />
+              <ChevronDownIcon width={18} height={18} className={`transition-transform ${showOrdered ? 'rotate-180' : ''}`} />
             </button>
           )}
           {showOrdered && <ul className="border-t border-line-soft">{orderedItems.map((item) => row(item))}</ul>}
@@ -152,7 +158,7 @@ export function ChecklistCard({ checklist, onAddItems, onToggle, onMove, onOpenI
               <span className="flex-1">
                 {doneItems.length} {checklist.kind === 'buy' ? 'received' : checklist.kind === 'clarify' ? 'answered' : 'done'}
               </span>
-              <ChevronDownIcon width={18} height={18} className={showDone ? 'rotate-180' : ''} />
+              <ChevronDownIcon width={18} height={18} className={`transition-transform ${showDone ? 'rotate-180' : ''}`} />
             </button>
           )}
           {showDone && <ul className="border-t border-line-soft">{doneItems.map((item) => row(item))}</ul>}

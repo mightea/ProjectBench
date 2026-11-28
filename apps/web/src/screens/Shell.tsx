@@ -4,10 +4,11 @@ import { api } from '../api.ts';
 import { CalendarIcon, CartIcon, GridIcon, LogoutIcon, PlusIcon, SearchIcon, SettingsIcon } from '../components/icons.tsx';
 import { Logo } from '../components/Logo.tsx';
 import { OfflineBanner } from '../components/OfflineBanner.tsx';
+import { ProgressRing } from '../components/ProgressRing.tsx';
 import { ProjectTile } from '../components/ProjectTile.tsx';
 import { STATUS_META } from '../lib/format.ts';
 import { useProjects, useTags } from '../lib/queries.ts';
-import { CONTENT_WIDTH } from '../lib/look.ts';
+import { CONTENT_WIDTH, lookStyle, projectColor } from '../lib/look.ts';
 import { ProjectScreen } from '../project/ProjectScreen.tsx';
 import { useRoute, useTagFilter } from '../useRoute.ts';
 import { BuyScreen } from './BuyScreen.tsx';
@@ -159,11 +160,16 @@ export function Shell() {
                   href={to}
                   onClick={go(to)}
                   aria-current={current ? 'page' : undefined}
-                  className={`flex shrink-0 items-center gap-2.5 rounded-lg px-2.5 text-sm ${sub ? 'min-h-9 pl-7' : 'min-h-10'} ${current ? 'bg-accent-soft font-semibold' : 'font-medium hover:bg-ground'}`}
+                  style={lookStyle(projectColor(p))}
+                  className={`flex shrink-0 items-center gap-2.5 rounded-lg px-2.5 text-sm transition-colors ${sub ? 'min-h-9 pl-7' : 'min-h-10'} ${current ? 'bg-accent-soft font-semibold' : 'font-medium hover:bg-ground'}`}
                 >
                   <ProjectTile project={p} size={sub ? 18 : 22} />
                   <span className="min-w-0 flex-1 truncate">{p.title}</span>
-                  <span className="text-[11px] text-muted">{p.progress.total ? `${p.progress.done}/${p.progress.total}` : STATUS_META[p.status].label}</span>
+                  {p.progress.total ? (
+                    <ProgressRing progress={p.progress} size={18} strokeWidth={5} label={false} />
+                  ) : (
+                    <span className="text-[11px] text-muted">{STATUS_META[p.status].label}</span>
+                  )}
                 </a>
               );
             })}
@@ -241,7 +247,9 @@ export function Shell() {
                   aria-current={current ? 'page' : undefined}
                   className={`flex min-h-11 w-18 flex-col items-center gap-1 text-[11px] ${current ? 'font-semibold text-accent-ink' : 'font-medium text-muted'}`}
                 >
-                  <t.Icon />
+                  <span className={`flex h-7 w-13 items-center justify-center rounded-full transition-colors ${current ? 'bg-accent-soft' : ''}`}>
+                    <t.Icon />
+                  </span>
                   {t.label}
                 </a>
               );

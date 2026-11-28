@@ -20,14 +20,14 @@ export const actionLabel = (kind: ChecklistKind, state: ItemState) => {
 export function StateMark({ state }: { state: ItemState }) {
   if (state === 'done') {
     return (
-      <span className="flex size-[22px] items-center justify-center rounded-full bg-accent text-white">
+      <span className="flex size-[22px] animate-pop items-center justify-center rounded-full bg-accent text-white">
         <CheckIcon width={14} height={14} strokeWidth={3} />
       </span>
     );
   }
   if (state === 'ordered') {
     return (
-      <span className="flex size-[22px] items-center justify-center rounded-full border-2 border-warning bg-warning-soft text-warning">
+      <span className="flex size-[22px] animate-pop items-center justify-center rounded-full border-2 border-warning bg-warning-soft text-warning">
         <BoxIcon width={12} height={12} strokeWidth={3} />
       </span>
     );
