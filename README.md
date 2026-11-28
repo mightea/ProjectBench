@@ -82,7 +82,7 @@ Clients that need stdio, such as Claude Desktop, can use the bridge after `pnpm 
 }
 ```
 
-Tools: `list_projects`, `get_project`, `create_project`, `update_project`, `add_items`, `update_item`, `set_item_links`, `add_note`, `get_attachment`, `add_attachment`, `search`, `agenda`, `shopping_list` and `open_questions`. Projects can be named by id or title. `create_project` and `update_project` take a `parent` to make a sub-project, and `list_projects` can list a project's sub-projects. Claude can't delete projects, checklists, items or files, and its changes are logged with the actor `mcp`. `add_attachment` takes base64 or a public URL; it refuses private and local network addresses.
+Tools: `list_projects`, `get_project`, `create_project`, `update_project`, `add_items`, `update_item`, `set_item_links`, `add_note`, `get_attachment`, `add_attachment`, `start_upload`, `search`, `agenda`, `shopping_list` and `open_questions`. Projects can be named by id or title. `create_project` and `update_project` take a `parent` to make a sub-project, and `list_projects` can list a project's sub-projects. Claude can't delete projects, checklists, items or files, and its changes are logged with the actor `mcp`. `add_attachment` takes base64 or a public URL; it refuses private and local network addresses. For a file on disk, `start_upload` returns a one-time link (valid for 15 minutes) that the client sends the file to, for example with `curl -T`, so the file never passes through the model. Notes are Markdown and are rendered as such in the app.
 
 ### Connecting with OAuth (claude.ai and other MCP clients)
 

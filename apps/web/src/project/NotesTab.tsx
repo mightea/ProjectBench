@@ -1,6 +1,7 @@
 import type { Note } from '@projectbench/core/schemas';
 import { useId, useState, type FormEvent } from 'react';
 import { ArrowUpIcon, CloseIcon, DotsIcon, PinIcon } from '../components/icons.tsx';
+import { Markdown } from '../components/Markdown.tsx';
 import { inputClass, Sheet } from '../components/Sheet.tsx';
 import { QueryFallback } from '../components/QueryFallback.tsx';
 import { UploadError, useNoteMutations, useNotes } from '../lib/queries.ts';
@@ -77,7 +78,7 @@ function NoteCard({ note: n, onMore }: { note: Note; onMore: () => void }) {
           <DotsIcon width={18} height={18} />
         </button>
       </div>
-      <p className="-mt-1 pr-1.5 text-[15px] leading-[1.45] break-words whitespace-pre-wrap">{n.body}</p>
+      <Markdown text={n.body} className="-mt-1 pr-1.5 text-[15px] leading-[1.45]" />
       {n.attachments.length > 0 && (
         <div className="pr-1.5">
           <AttachmentList attachments={n.attachments} />
