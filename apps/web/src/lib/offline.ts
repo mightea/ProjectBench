@@ -5,7 +5,7 @@ import { del, get, set } from 'idb-keyval';
 
 const MAX_AGE = 30 * 24 * 60 * 60 * 1000;
 /** Raise when the shape of cached API responses changes. */
-const CACHE_VERSION = '3';
+const CACHE_VERSION = '4';
 /** Also named in the service worker's runtime caching in vite.config.ts. */
 export const THUMBNAIL_CACHE = 'projectbench-thumbnails';
 
