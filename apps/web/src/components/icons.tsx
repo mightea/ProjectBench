@@ -214,3 +214,21 @@ export const SubprojectIcon = (p: SVGProps<SVGSVGElement>) => (
     <path d="M6 4v7a4 4 0 0 0 4 4h9M15 11l4 4-4 4" />
   </svg>
 );
+
+export const FlagIcon = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base} strokeWidth={2.2} {...p}>
+    <path d="M5 21V4M5 4h12l-2 4 2 4H5" />
+  </svg>
+);
+
+export const BoltIcon = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base} strokeWidth={2.2} {...p}>
+    <path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z" />
+  </svg>
+);
+
+export const ArrowRightIcon = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base} strokeWidth={2.2} {...p}>
+    <path d="M5 12h14M13 6l6 6-6 6" />
+  </svg>
+);

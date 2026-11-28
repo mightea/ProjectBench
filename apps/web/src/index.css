@@ -35,6 +35,26 @@
   --color-claude-soft: #f1e8fb;
   --color-status-idea: #8b5cf6;
   --color-scrim: rgb(21 23 28 / 0.45);
+
+  --shadow-card: 0 1px 2px rgb(21 23 28 / 0.04), 0 6px 16px -10px rgb(21 23 28 / 0.14);
+  --shadow-lift: 0 2px 4px rgb(21 23 28 / 0.05), 0 18px 32px -14px rgb(21 23 28 / 0.26);
+
+  --ease-settle: cubic-bezier(0.2, 0.7, 0.2, 1);
+  /* Backwards only, so hover transforms still apply once a card has arrived. */
+  --animate-rise: rise 0.5s var(--ease-settle) backwards;
+  --animate-pop: pop 0.32s cubic-bezier(0.3, 1.6, 0.5, 1) backwards;
+
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+  }
+  @keyframes pop {
+    from {
+      transform: scale(0.6);
+    }
+  }
 }
 
 /*
@@ -114,6 +134,8 @@
   --color-claude-soft: #2c2140;
   --color-status-idea: #a78bfa;
   --color-scrim: rgb(0 0 0 / 0.62);
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3);
+  --shadow-lift: 0 18px 32px -14px rgb(0 0 0 / 0.7);
 }
 
 html {
@@ -142,4 +164,66 @@ body {
   @apply bg-ground text-ink font-sans antialiased;
   /* Inter turns "4x20" into "4×20"; part numbers must stay as typed. */
   font-feature-settings: 'calt' 0;
+}
+
+/* Progress ring arcs: the circle's circumference is 100, so a dash length is a percentage. */
+.ring-arc {
+  animation: ring-fill 0.9s var(--ease-settle) 0.1s backwards;
+  transition:
+    stroke-dasharray 0.5s var(--ease-settle),
+    stroke-dashoffset 0.5s var(--ease-settle);
+}
+@keyframes ring-fill {
+  from {
+    stroke-dasharray: 0 100;
+  }
+}
+
+/* A segment of a progress bar: grows in on load, glides when the count changes. */
+.meter-fill {
+  animation: meter-grow 0.8s var(--ease-settle) 0.15s backwards;
+  transition: width 0.4s var(--ease-settle);
+}
+@keyframes meter-grow {
+  from {
+    width: 0;
+  }
+}
+
+/* Marks things that are on their way. The only motion that loops. */
+.ping-dot {
+  position: relative;
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 999px;
+  background: var(--color-ordered);
+}
+.ping-dot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: inherit;
+  animation: ping-soft 1.8s ease-out infinite;
+}
+@keyframes ping-soft {
+  from {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(2.8);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
 }

@@ -1,7 +1,8 @@
-import type { ProjectDetail } from '@projectbench/core/schemas';
+import type { ProjectDetail, ProjectStatus } from '@projectbench/core/schemas';
 import { useEffect, useState, type MouseEvent } from 'react';
 import { ApiError } from '../api.ts';
-import { BackIcon, DotsIcon, PencilIcon, PlusIcon, SubprojectIcon } from '../components/icons.tsx';
+import { BackIcon, CalendarIcon, DotsIcon, FlagIcon, PencilIcon, PlusIcon, SubprojectIcon } from '../components/icons.tsx';
+import { ProgressRing } from '../components/ProgressRing.tsx';
 import { LinkedText } from '../components/LinkedText.tsx';
 import { ProjectTile } from '../components/ProjectTile.tsx';
 import { Sheet } from '../components/Sheet.tsx';
@@ -17,13 +18,16 @@ import { ItemSheet } from './ItemSheet.tsx';
 import { LookSheet } from './LookSheet.tsx';
 import { NotesTab } from './NotesTab.tsx';
 import { DetailsSheet } from './ProjectDetails.tsx';
-import { LatestNote, OverviewTiles, UpNext } from './ProjectOverview.tsx';
+import { LatestNote, OnTheWay, OverviewTiles, UpNext } from './ProjectOverview.tsx';
 import { ParentLink, SubprojectsSection } from './Subprojects.tsx';
 
 /** Tags shown in the header before "+n". */
 const HERO_TAGS = 3;
 /** Descriptions longer than this are clamped to three lines. */
 const LONG_DESCRIPTION = 180;
+
+/** The statuses a project moves through; archiving is in the actions menu. */
+const STATUS_STEPS: ProjectStatus[] = ['idea', 'planned', 'active', 'waiting', 'done'];
 
 const TABS = [
   { id: 'checklists', label: 'Checklists' },
@@ -107,7 +111,10 @@ function ProjectView({ project: p, navigate, backLink }: { project: ProjectDetai
   const editing = panel?.type === 'checklist' ? p.checklists.find((c) => c.id === panel.id) : undefined;
   // Matches what UpNext and LatestNote render, so an empty side column never takes up space.
   const hasOpenStep = p.checklists.some((c) => c.kind === 'todo' && c.items.some((i) => i.state === 'open' && !i.id.startsWith('pending-')));
-  const hasHighlights = hasOpenStep || Boolean(notes.data?.length);
+  const hasOrdered = p.checklists.some((c) => c.items.some((i) => i.state === 'ordered'));
+  const hasHighlights = hasOpenStep || hasOrdered || Boolean(notes.data?.length);
+  const statuses = p.status === 'archived' ? [...STATUS_STEPS, p.status] : STATUS_STEPS;
+  const chip = 'flex h-11 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold transition-transform active:scale-[0.97]';
 
   return (
     <div className="w-full flex-1" style={lookStyle(projectColor(p))}>
@@ -145,16 +152,41 @@ function ProjectView({ project: p, navigate, backLink }: { project: ProjectDetai
             <button type="button" onClick={() => setPanel({ type: 'look' })} aria-label="Change project look" className="shrink-0 rounded-[14px]">
               <ProjectTile project={p} size={52} />
             </button>
-            <div className="flex min-w-0 flex-col gap-1">
-              <h1 className="font-display text-[28px] leading-[1.1] font-semibold tracking-tight md:text-[32px]">{p.title}</h1>
-              <button type="button" onClick={() => setPanel({ type: 'details' })} className="flex min-h-6 items-center gap-1.5 self-start text-left text-[13px] text-ink-soft">
-                <span className={`size-2 shrink-0 rounded-full ${STATUS_META[p.status].dot}`} aria-hidden="true" />
-                <span>
-                  {STATUS_META[p.status].label} · {PRIORITY_META[p.priority]?.label} ·{' '}
-                  {p.dueDate ? <span className={dueToneClass[dueTone(p.dueDate)]}>due {formatDue(p.dueDate)}</span> : 'no due date'}
-                </span>
-              </button>
+            <h1 className="min-w-0 flex-1 font-display text-[28px] leading-[1.1] font-semibold tracking-tight md:text-[32px]">{p.title}</h1>
+            {p.progress.total > 0 && <ProgressRing progress={p.progress} size={64} track="stroke-surface" />}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {/* One tap changes the status on a wide screen; a phone opens the edit sheet. */}
+            <div role="group" aria-label="Status" className="hidden rounded-full bg-surface p-[3px] md:flex">
+              {statuses.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  aria-pressed={p.status === s}
+                  onClick={() => p.status !== s && m.updateProject.mutate({ status: s })}
+                  className={`h-[38px] rounded-full px-3 text-[13px] transition-colors ${p.status === s ? 'bg-(--look) font-semibold text-white' : 'font-medium text-muted hover:text-ink'}`}
+                >
+                  {STATUS_META[s].label}
+                </button>
+              ))}
             </div>
+            <button type="button" onClick={() => setPanel({ type: 'details' })} className={`${chip} bg-(--look) text-white md:hidden`}>
+              <span className="size-[7px] rounded-full bg-white" aria-hidden="true" />
+              {STATUS_META[p.status].label}
+            </button>
+            <button type="button" onClick={() => setPanel({ type: 'details' })} className={`${chip} bg-surface`}>
+              <FlagIcon width={14} height={14} className="text-(--look-ink)" />
+              {PRIORITY_META[p.priority]?.short} · {PRIORITY_META[p.priority]?.label}
+            </button>
+            <button
+              type="button"
+              onClick={() => setPanel({ type: 'details' })}
+              className={`${chip} ${p.dueDate ? `bg-surface ${dueToneClass[dueTone(p.dueDate)]}` : 'border border-dashed border-(--look-ink) font-medium text-(--look-ink)'}`}
+            >
+              <CalendarIcon width={14} height={14} strokeWidth={2.2} />
+              {p.dueDate ? `Due ${formatDue(p.dueDate)}` : 'Set a due date'}
+            </button>
           </div>
 
           {p.description ? (
@@ -219,6 +251,7 @@ function ProjectView({ project: p, navigate, backLink }: { project: ProjectDetai
         {hasHighlights && (
           <div className="flex min-w-0 flex-col gap-3.5 lg:col-start-2 lg:row-span-2 lg:row-start-1 xl:col-start-1 xl:row-span-1 xl:grid xl:auto-cols-fr xl:grid-flow-col xl:items-start 2xl:col-start-2 2xl:row-span-2 2xl:flex 2xl:items-stretch">
             <UpNext project={p} onDone={(itemId) => m.updateItem.mutate({ id: itemId, state: 'done' })} />
+            <OnTheWay project={p} onReceived={(itemId) => m.updateItem.mutate({ id: itemId, state: 'done' })} />
             <LatestNote notes={notes.data} onAll={() => setTab('notes')} />
           </div>
         )}
@@ -237,7 +270,7 @@ function ProjectView({ project: p, navigate, backLink }: { project: ProjectDetai
                   onClick={() => setTab(t.id)}
                   className={`h-11 flex-1 rounded-lg text-sm md:flex-none md:rounded-none md:border-b-2 md:px-4 ${
                     tab === t.id
-                      ? 'bg-surface font-semibold shadow-sm md:border-accent md:bg-transparent md:text-accent-ink md:shadow-none'
+                      ? 'bg-surface font-semibold shadow-sm md:border-(--look) md:bg-transparent md:text-(--look-ink) md:shadow-none'
                       : 'font-medium text-ink-soft md:border-transparent md:text-muted'
                   }`}
                 >
