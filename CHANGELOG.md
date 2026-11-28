@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026.11.11](https://github.com/mightea/ProjectBench/compare/2026.11.10...2026.11.11) (2026-11-28)
+
+
+### ✨ Features
+
+* upload local files through MCP and render notes as Markdown ([#26](https://github.com/mightea/ProjectBench/issues/26)) ([5c7bdc3](https://github.com/mightea/ProjectBench/commit/5c7bdc34fffc02e7fc0f8a160c54c6ebfda08f17))
+
 ## [2026.11.10](https://github.com/mightea/ProjectBench/compare/2026.11.9...2026.11.10) (2026-11-28)
 
 
