@@ -260,6 +260,36 @@ describe('MCP attachments', () => {
     await client.close();
   });
 
+  it('uploads a local file through a one-time link', async () => {
+    const client = await connect();
+    const start = async (args: Record<string, unknown>) =>
+      (await client.callTool({ name: 'start_upload', arguments: { project: 'Rack fan', ...args } })) as Result;
+    const note = await json<Note>('POST', `/api/projects/${projectId}/notes`, { body: 'Test fit' });
+
+    const started = await start({ filename: 'fit.jpg', note_id: note.id, caption: 'Test fit' });
+    expect(started.isError ?? false, started.content[0]!.text).toBe(false);
+    const link = JSON.parse(started.content[0]!.text!) as { upload_url: string; command: string };
+    expect(link.upload_url).toMatch(/^http:\/\/localhost\/mcp\/upload\/[\w-]{43}$/);
+    expect(link.command).toContain(link.upload_url);
+
+    // The link needs no token or session, and a failed attempt leaves it usable.
+    const empty = await app.request(link.upload_url, { method: 'PUT' });
+    expect(empty.status).toBe(400);
+    const sent = await app.request(link.upload_url, { method: 'PUT', body: await jpeg() });
+    expect(sent.status).toBe(201);
+    const attachment = (await sent.json()) as { id: string; mime: string; note_id: string; caption: string };
+    expect(attachment).toMatchObject({ filename: 'fit.jpg', mime: 'image/jpeg', note_id: note.id, caption: 'Test fit' });
+    expect((await json<Attachment[]>('GET', `/api/projects/${projectId}/attachments`)).map((a) => a.id)).toEqual([attachment.id]);
+
+    // It works once.
+    expect((await app.request(link.upload_url, { method: 'PUT', body: await jpeg() })).status).toBe(404);
+    expect((await app.request('http://localhost/mcp/upload/unknown', { method: 'PUT', body: 'x' })).status).toBe(404);
+
+    expect((await start({ filename: 'a.txt', note_id: 'missing' })).isError).toBe(true);
+    expect((await start({ project: 'No such project', filename: 'a.txt' })).isError).toBe(true);
+    await client.close();
+  });
+
   it('refuses private URLs', async () => {
     const client = await connect();
     for (const url of ['http://127.0.0.1:8787/api/health', 'http://localhost/', 'http://[::ffff:192.168.1.1]/', 'http://169.254.169.254/latest', 'file:///etc/passwd']) {
