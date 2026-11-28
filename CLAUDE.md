@@ -51,6 +51,8 @@ Run `pnpm test` and `pnpm typecheck` before committing; the pre-commit hook runs
 - Types are sniffed from content. Only raster images and PDFs are served inline.
 - `sharp`, `heic-decode` and `unpdf` stay external in the server bundle and are installed in the Dockerfile.
 - `add_attachment` URL fetches must keep refusing private addresses (`packages/core/src/fetch-url.ts`).
+- `start_upload` hands out one-time links to `PUT /mcp/upload/<ticket>` (`apps/server/src/uploads.ts`). The ticket is the only credential: keep it single-use, short-lived and in memory.
+- Note bodies are Markdown, rendered by `apps/web/src/components/Markdown.tsx`. It must not render raw HTML or load remote images.
 
 ## Offline reading
 

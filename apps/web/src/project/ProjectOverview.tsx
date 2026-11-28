@@ -1,6 +1,7 @@
 import type { ChecklistItem, ChecklistKind, Note, ProjectDetail } from '@projectbench/core/schemas';
 import { useState } from 'react';
 import { ArrowRightIcon, CheckIcon, kindIcon } from '../components/icons.tsx';
+import { Markdown } from '../components/Markdown.tsx';
 import { formatDue } from '../lib/format.ts';
 import { itemShop } from './ItemRow.tsx';
 
@@ -174,7 +175,7 @@ export function LatestNote({ notes, onAll }: { notes: Note[] | undefined; onAll:
         <span className="text-xs text-muted">{formatDue(note.createdAt)}</span>
         {note.source === 'mcp' && <span className="ml-auto rounded-md bg-claude-soft px-1.5 py-0.5 text-[11px] font-semibold text-claude">via Claude</span>}
       </div>
-      <p className="line-clamp-4 text-sm leading-relaxed whitespace-pre-line text-ink-soft">{note.body}</p>
+      <Markdown text={note.body} className="line-clamp-4 text-sm leading-relaxed text-ink-soft" />
       <button type="button" onClick={onAll} className="flex min-h-11 items-center self-start text-[13px] font-semibold text-accent-ink">
         All notes · {notes.length}
       </button>

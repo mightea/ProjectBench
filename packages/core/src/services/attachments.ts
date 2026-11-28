@@ -41,26 +41,28 @@ export interface AttachmentInput {
   caption?: string | null;
 }
 
+/** Throws unless the project exists and the note or item, if given, belongs to it. */
+export function assertAttachmentTargets(db: ServiceContext['db'], projectId: string, target: { noteId?: string | null; itemId?: string | null }): void {
+  if (!db.select({ id: projects.id }).from(projects).where(eq(projects.id, projectId)).get()) {
+    throw new NotFoundError('Project', projectId);
+  }
+  if (target.noteId && !db.select({ id: notes.id }).from(notes).where(and(eq(notes.id, target.noteId), eq(notes.projectId, projectId))).get()) {
+    throw new NotFoundError('Note', target.noteId);
+  }
+  if (target.itemId) {
+    const item = db
+      .select({ id: checklistItems.id })
+      .from(checklistItems)
+      .innerJoin(checklists, eq(checklists.id, checklistItems.checklistId))
+      .where(and(eq(checklistItems.id, target.itemId), eq(checklists.projectId, projectId)))
+      .get();
+    if (!item) throw new NotFoundError('Item', target.itemId);
+  }
+}
+
 export async function addAttachment(ctx: ServiceContext, projectId: string, input: AttachmentInput): Promise<Attachment> {
   const files = store(ctx);
-  const assertTargets = (db: ServiceContext['db']) => {
-    if (!db.select({ id: projects.id }).from(projects).where(eq(projects.id, projectId)).get()) {
-      throw new NotFoundError('Project', projectId);
-    }
-    if (input.noteId && !db.select({ id: notes.id }).from(notes).where(and(eq(notes.id, input.noteId), eq(notes.projectId, projectId))).get()) {
-      throw new NotFoundError('Note', input.noteId);
-    }
-    if (input.itemId) {
-      const item = db
-        .select({ id: checklistItems.id })
-        .from(checklistItems)
-        .innerJoin(checklists, eq(checklists.id, checklistItems.checklistId))
-        .where(and(eq(checklistItems.id, input.itemId), eq(checklists.projectId, projectId)))
-        .get();
-      if (!item) throw new NotFoundError('Item', input.itemId);
-    }
-  };
-  assertTargets(ctx.db);
+  assertAttachmentTargets(ctx.db, projectId, input);
 
   const file = await processUpload(input.bytes, input.filename);
   const id = newId();
@@ -70,7 +72,7 @@ export async function addAttachment(ctx: ServiceContext, projectId: string, inpu
   files.put(file.sha256, file.bytes, file.thumbnail);
   try {
     ctx.db.transaction((tx) => {
-      assertTargets(tx as unknown as ServiceContext['db']);
+      assertAttachmentTargets(tx as unknown as ServiceContext['db'], projectId, input);
       tx.insert(attachments)
         .values({
           id,

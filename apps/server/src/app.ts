@@ -35,6 +35,7 @@ import { mcpChallenge, oauthApiRoutes, oauthRoutes, PendingAuthorizations } from
 import { ChallengeStore, passkeyLoginRoutes, passkeyRoutes, type PasskeyDeps } from './passkeys.ts';
 import { FailureLimiter } from './rate-limit.ts';
 import { apiRoutes } from './routes.ts';
+import { uploadLinks, uploadRoutes, UploadTickets } from './uploads.ts';
 
 export const SESSION_COOKIE = 'pb_session';
 
@@ -105,6 +106,7 @@ export function createApp({ db, config, limiter = new FailureLimiter(), fetchCli
   };
   const oauth = oauthIssuerFor(config.publicUrl);
   const pendingAuthorizations = new PendingAuthorizations();
+  const uploadTickets = new UploadTickets();
 
   // --- Public endpoints -----------------------------------------------------
 
@@ -208,8 +210,11 @@ export function createApp({ db, config, limiter = new FailureLimiter(), fetchCli
     '/mcp',
     // add_attachment can carry a 50 MB file as base64.
     bodyLimit({ maxSize: Math.ceil((MAX_UPLOAD_BYTES * 4) / 3) + 1024 * 1024, onError: (c) => c.json({ error: 'Request too large' }, 413) }),
-    (c) => handleMcpRequest(db, c.req.raw, files),
+    // Upload links point back at the public address, or else at the one the client used.
+    (c) => handleMcpRequest(db, c.req.raw, files, uploadLinks(uploadTickets, publicOrigin ?? new URL(c.req.url).origin)),
   );
+  // One-time links from start_upload: the ticket in the path is the credential.
+  if (files) app.route('/mcp/upload', uploadRoutes({ db, actor: 'mcp', files }, uploadTickets));
   // Stateless server: no event stream to open and no session to end.
   app.all('/mcp', (c) => {
     c.header('Allow', 'POST');

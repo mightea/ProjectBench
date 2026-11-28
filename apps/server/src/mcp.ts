@@ -3,6 +3,7 @@ import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import {
   addAttachmentFrom,
+  assertAttachmentTargets,
   addItemsToProject,
   addNote,
   agenda,
@@ -11,6 +12,7 @@ import {
   createProjectWithChecklists,
   InvalidOperationError,
   ITEM_STATES,
+  MAX_UPLOAD_BYTES,
   listProjects,
   NotFoundError,
   openQuestions,
@@ -26,7 +28,6 @@ import {
   shoppingList,
   updateItem,
   updateProject,
-  type Attachment,
   type Db,
   type FileStore,
   type ItemCreate,
@@ -35,6 +36,7 @@ import {
 } from '@projectbench/core';
 import { z, ZodError } from 'zod';
 import { VERSION } from './config.ts';
+import { attachmentInfo, type UploadLinks } from './uploads.ts';
 
 const date = z.iso.date();
 const priority = z.number().int().min(1).max(4).describe('1 = urgent, 2 = high, 3 = normal, 4 = low');
@@ -92,19 +94,6 @@ async function runAsync(handler: () => Promise<CallToolResult>): Promise<CallToo
   }
 }
 
-const attachmentInfo = ({ id, filename, mime, sizeBytes, width, height, caption, noteId, itemId, createdAt }: Attachment) => ({
-  id,
-  filename,
-  mime,
-  size_bytes: sizeBytes,
-  width,
-  height,
-  caption,
-  note_id: noteId,
-  item_id: itemId,
-  created_at: createdAt,
-});
-
 /** Compact item for list-style results. */
 const brief = (item: ItemWithContext) => {
   const link = preferredLink(item);
@@ -134,7 +123,7 @@ const READ_ONLY = { readOnlyHint: true, destructiveHint: false, idempotentHint: 
 const ADDITIVE = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false } as const;
 const UPDATE = { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false } as const;
 
-export function createMcpServer(db: Db, files?: FileStore): McpServer {
+export function createMcpServer(db: Db, files?: FileStore, uploads?: UploadLinks): McpServer {
   const ctx: ServiceContext = { db, actor: 'mcp', files };
   const server = new McpServer(
     { name: 'projectbench', title: 'ProjectBench', version: VERSION },
@@ -143,7 +132,8 @@ export function createMcpServer(db: Db, files?: FileStore): McpServer {
         'ProjectBench holds personal projects with checklists (buy, clarify, todo) and notes. Refer to projects by id or title. ' +
         'If a title is ambiguous, the tool lists candidates: pick one or ask the user. Nothing can be deleted through these tools; ' +
         'archive a project with update_project. A project can have sub-projects (one level deep) for a self-contained part of it, ' +
-        'such as ordering a prototype: create one with create_project and parent.',
+        'such as ordering a prototype: create one with create_project and parent. To attach a file from disk, call start_upload and ' +
+        'send the file to the link it returns.',
     },
   );
 
@@ -459,7 +449,8 @@ export function createMcpServer(db: Db, files?: FileStore): McpServer {
     {
       title: 'Add attachment',
       description:
-        'Attaches a file of up to 50 MB to a project, optionally on a note or item. Give a public http(s) url or base64 data with a filename.',
+        'Attaches a file of up to 50 MB to a project, optionally on a note or item. Give a public http(s) url or base64 data with a filename. ' +
+        'Use base64 only for small content you wrote yourself; for a file on disk use start_upload instead.',
       inputSchema: {
         project: projectRef,
         url: z.string().max(2000).optional().describe('Public http(s) URL to download. Private addresses are refused.'),
@@ -477,12 +468,47 @@ export function createMcpServer(db: Db, files?: FileStore): McpServer {
       ),
   );
 
+  if (uploads) {
+    server.registerTool(
+      'start_upload',
+      {
+        title: 'Start upload',
+        description:
+          'Prepares attaching a local file of up to 50 MB to a project, optionally on a note or item. Returns a one-time upload link, ' +
+          'valid for 15 minutes, and a curl command: run it with the path of the file to send the file itself, never its base64. ' +
+          'The response to the upload is the new attachment. Call once per file.',
+        inputSchema: {
+          project: projectRef,
+          filename: z.string().min(1).max(255).describe('Name to store the file under, with its extension'),
+          note_id: z.string().min(1).optional(),
+          item_id: z.string().min(1).optional(),
+          caption: z.string().max(500).optional(),
+        },
+        annotations: ADDITIVE,
+      },
+      ({ project, filename, note_id, item_id, caption }) =>
+        run(() => {
+          if (!files) throw new InvalidOperationError('File storage is not configured');
+          const target = { projectId: resolveProject(ctx, project).id, filename, noteId: note_id, itemId: item_id, caption };
+          assertAttachmentTargets(ctx.db, target.projectId, target);
+          const { url, expiresAt } = uploads.create(target);
+          return json({
+            upload_url: url,
+            method: 'PUT',
+            expires_at: expiresAt,
+            max_bytes: MAX_UPLOAD_BYTES,
+            command: `curl -sS -T <path-to-file> '${url}'`,
+          });
+        }),
+    );
+  }
+
   return server;
 }
 
 /** Handles one MCP request. The server is stateless, so each request gets its own instance. */
-export async function handleMcpRequest(db: Db, request: Request, files?: FileStore): Promise<Response> {
-  const server = createMcpServer(db, files);
+export async function handleMcpRequest(db: Db, request: Request, files?: FileStore, uploads?: UploadLinks): Promise<Response> {
+  const server = createMcpServer(db, files, uploads);
   const transport = new WebStandardStreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
   await server.connect(transport);
   try {

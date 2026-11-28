@@ -227,3 +227,108 @@ body {
     transition: none !important;
   }
 }
+
+/* Rendered Markdown (components/Markdown.tsx). Sized in em, so it follows the text size around it. */
+.markdown {
+  overflow-wrap: anywhere;
+}
+.markdown > * + *,
+.markdown li > * + *,
+.markdown blockquote > * + * {
+  margin-top: 0.6em;
+}
+.markdown :is(h1, h2, h3, h4, h5, h6) {
+  font-family: var(--font-display);
+  font-weight: 600;
+  line-height: 1.25;
+}
+.markdown > :is(h1, h2, h3, h4, h5, h6):not(:first-child) {
+  margin-top: 1em;
+}
+.markdown h1 {
+  font-size: 1.25em;
+}
+.markdown h2 {
+  font-size: 1.125em;
+}
+.markdown :is(h3, h4, h5, h6) {
+  font-size: 1em;
+}
+.markdown strong {
+  font-weight: 600;
+}
+.markdown a {
+  color: var(--color-accent-ink);
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.markdown :is(ul, ol) {
+  padding-left: 1.4em;
+}
+.markdown ul {
+  list-style: disc;
+}
+.markdown ol {
+  list-style: decimal;
+}
+.markdown li + li,
+.markdown li > :is(ul, ol) {
+  margin-top: 0.2em;
+}
+.markdown li::marker {
+  color: var(--color-faint);
+}
+.markdown .contains-task-list {
+  list-style: none;
+  padding-left: 0.1em;
+}
+.markdown .task-list-item input {
+  margin-right: 0.45em;
+  accent-color: var(--color-accent);
+}
+.markdown blockquote {
+  border-left: 3px solid var(--color-line-strong);
+  padding-left: 0.8em;
+  color: var(--color-ink-soft);
+}
+.markdown code {
+  border-radius: 5px;
+  background: var(--color-ground);
+  padding: 0.1em 0.35em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.875em;
+}
+.markdown pre {
+  overflow-x: auto;
+  border-radius: 10px;
+  background: var(--color-ground);
+  padding: 0.7em 0.85em;
+  line-height: 1.5;
+}
+.markdown pre code {
+  background: none;
+  padding: 0;
+  overflow-wrap: normal;
+  white-space: pre;
+}
+.markdown hr {
+  border: 0;
+  border-top: 1px solid var(--color-line);
+  margin-block: 0.9em;
+}
+.markdown table {
+  border-collapse: collapse;
+  font-size: 0.9375em;
+  overflow-wrap: normal;
+}
+.markdown :is(th, td) {
+  border: 1px solid var(--color-line);
+  padding: 0.35em 0.6em;
+  text-align: left;
+  vertical-align: top;
+}
+.markdown th {
+  background: var(--color-ground);
+  font-weight: 600;
+}

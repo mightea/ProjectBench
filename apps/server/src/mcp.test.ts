@@ -99,6 +99,7 @@ describe('MCP tools', () => {
         'search',
         'set_item_links',
         'shopping_list',
+        'start_upload',
         'update_item',
         'update_project',
       ].sort(),
