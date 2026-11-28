@@ -1,5 +1,13 @@
 # Changelog
 
+## [2026.11.9](https://github.com/mightea/ProjectBench/compare/2026.11.8...2026.11.9) (2026-11-28)
+
+
+### ✨ Features
+
+* add sub-projects ([#21](https://github.com/mightea/ProjectBench/issues/21)) ([d982be9](https://github.com/mightea/ProjectBench/commit/d982be9608cd340557a0952f49fc2483cb9891c4))
+* refresh the projects overview and project detail ([#23](https://github.com/mightea/ProjectBench/issues/23)) ([682a76c](https://github.com/mightea/ProjectBench/commit/682a76c736c29069d096bf23fc8ba889ac18c7d8))
+
 ## [2026.11.8](https://github.com/mightea/ProjectBench/compare/2026.11.7...2026.11.8) (2026-11-23)
 
 
